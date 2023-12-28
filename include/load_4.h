@@ -28,7 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_LOAD_4_H
 #define ED25519_LOAD_4_H
 
-#include <stdint.h>
+#include <cstdint>
 
 uint64_t load_4(const unsigned char *in);
 

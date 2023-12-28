@@ -27,6 +27,10 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_add.h"
 
+#include "fe_add.h"
+#include "fe_mul.h"
+#include "fe_sub.h"
+
 /*
 r = p + q
 */

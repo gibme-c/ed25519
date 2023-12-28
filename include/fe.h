@@ -28,7 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_FE_H
 #define ED25519_FE_H
 
-#include <stdint.h>
+#include <cstdint>
 
 typedef int32_t fe[10];
 

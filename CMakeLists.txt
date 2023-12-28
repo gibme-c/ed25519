@@ -126,6 +126,7 @@ set(ED25519_SRC
     src/fe_sq2.cpp
     src/fe_sub.cpp
     src/fe_tobytes.cpp
+    src/ge.cpp
     src/ge_add.cpp
     src/ge_cached_0.cpp
     src/ge_cached_cmov.cpp

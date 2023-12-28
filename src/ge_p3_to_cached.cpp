@@ -27,6 +27,11 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p3_to_cached.h"
 
+#include "fe_add.h"
+#include "fe_copy.h"
+#include "fe_mul.h"
+#include "fe_sub.h"
+
 static const fe fe_d2 =
     {-21827239, -5839606, -30745221, 13898782, 229458, 15978800, -12551817, -6495438, 29715968, 9444199}; /* 2 * d */
 

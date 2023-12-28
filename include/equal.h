@@ -28,7 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_EQUAL_H
 #define ED25519_EQUAL_H
 
-#include <stdint.h>
+#include <cstdint>
 
 unsigned char equal(signed char b, signed char c);
 

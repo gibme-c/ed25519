@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_INVERT_H
 
 #include "fe.h"
-#include "fe_mul.h"
-#include "fe_sq.h"
 
 void fe_invert(fe out, const fe z);
 

@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_pow22523.h"
 
+#include "fe_mul.h"
+#include "fe_sq.h"
+
 void fe_pow22523(fe out, const fe z)
 {
     fe t0;

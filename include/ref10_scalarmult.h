@@ -28,19 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_REF10_SCALARMULT_H
 #define ED25519_REF10_SCALARMULT_H
 
-#include "equal.h"
-#include "fe_copy.h"
-#include "fe_neg.h"
 #include "ge.h"
-#include "ge_add.h"
-#include "ge_cached_0.h"
-#include "ge_cached_cmov.h"
-#include "ge_p1p1_to_p2.h"
-#include "ge_p1p1_to_p3.h"
-#include "ge_p2_0.h"
-#include "ge_p2_dbl.h"
-#include "ge_p3_to_cached.h"
-#include "negative.h"
 
 void ref10_scalarmult(ge_p1p1 *r, const unsigned char *a, const ge_p3 *A);
 

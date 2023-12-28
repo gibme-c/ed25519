@@ -27,6 +27,19 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ref10_scalarmult.h"
 
+#include "equal.h"
+#include "fe_copy.h"
+#include "fe_neg.h"
+#include "ge_add.h"
+#include "ge_cached_0.h"
+#include "ge_cached_cmov.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p2_0.h"
+#include "ge_p2_dbl.h"
+#include "ge_p3_to_cached.h"
+#include "negative.h"
+
 // adapted from ge_scalarmult_base.c
 
 /*

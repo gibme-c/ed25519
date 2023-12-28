@@ -27,6 +27,22 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_fromfe_frombytes_negate_vartime.h"
 
+#include "fe_1.h"
+#include "fe_add.h"
+#include "fe_copy.h"
+#include "fe_divpowm1.h"
+#include "fe_frombytes.h"
+#include "fe_invert.h"
+#include "fe_isnegative.h"
+#include "fe_isnonzero.h"
+#include "fe_mul.h"
+#include "fe_neg.h"
+#include "fe_sq.h"
+#include "fe_sq2.h"
+#include "fe_sub.h"
+
+#include <cassert>
+
 /* sqrt(x) is such an integer y that 0 <= y <= p - 1, y % 2 = 0, and y^2 = x (mod p). */
 /* d = -121665 / 121666 */
 static const fe fe_d =

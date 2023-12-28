@@ -28,7 +28,6 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_GE_CACHED_CMOV_H
 #define ED25519_GE_CACHED_CMOV_H
 
-#include "fe_cmov.h"
 #include "ge.h"
 
 void ge_cached_cmov(ge_cached *t, const ge_cached *u, unsigned char b);

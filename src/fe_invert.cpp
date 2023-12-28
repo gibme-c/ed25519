@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_invert.h"
 
+#include "fe_mul.h"
+#include "fe_sq.h"
+
 void fe_invert(fe out, const fe z)
 {
     fe t0;

@@ -27,6 +27,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_precomp_cmov.h"
 
+#include "fe_cmov.h"
+
 void ge_precomp_cmov(ge_precomp *t, const ge_precomp *u, unsigned char b)
 {
     fe_cmov(t->yplusx, u->yplusx, b);

@@ -30,9 +30,6 @@ For more information, please refer to <http://unlicense.org/>
 
 #if defined __SIZEOF_INT128__ && defined __USE_64BIT__
 #include "donna128_scalarmult.h"
-#include "ge_add.h"
-#include "ge_frombytes_negate_vartime.h"
-#include "ge_p3_tobytes.h"
 #endif
 
 #include "ge.h"

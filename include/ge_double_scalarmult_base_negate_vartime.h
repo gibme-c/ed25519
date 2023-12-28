@@ -29,16 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_GE_DOUBLE_SCALARMULT_BASE_VARTIME_H
 
 #include "ge.h"
-#include "ge_add.h"
-#include "ge_dsm_precomp.h"
-#include "ge_madd.h"
-#include "ge_msub.h"
-#include "ge_p1p1_to_p2.h"
-#include "ge_p1p1_to_p3.h"
-#include "ge_p2_0.h"
-#include "ge_p2_dbl.h"
-#include "ge_sub.h"
-#include "slide.h"
 
 void ge_double_scalarmult_base_negate_vartime(
     ge_p1p1 *t,

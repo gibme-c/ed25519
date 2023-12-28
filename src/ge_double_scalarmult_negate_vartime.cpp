@@ -29,6 +29,15 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_double_scalarmult_negate_vartime.h"
 
+#include "ge_add.h"
+#include "ge_dsm_precomp.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p2_0.h"
+#include "ge_p2_dbl.h"
+#include "ge_sub.h"
+#include "slide.h"
+
 /*
 r = a * A + b * B
 where a = a[0]+256*a[1]+...+256^31 a[31].

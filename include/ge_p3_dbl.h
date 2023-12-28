@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_GE_P3_DBL_H
 
 #include "ge.h"
-#include "ge_p2_dbl.h"
-#include "ge_p3_to_p2.h"
 
 void ge_p3_dbl(ge_p1p1 *r, const ge_p3 *p);
 

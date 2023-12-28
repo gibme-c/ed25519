@@ -36,16 +36,9 @@ For more information, please refer to <http://unlicense.org/>
 
 typedef struct GeP2
 {
-    bool operator==(const GeP2 &other) const
-    {
-        return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-               && memcmp(Z, other.Z, sizeof(Z)) == 0;
-    }
+    bool operator==(const GeP2 &other) const;
 
-    bool operator!=(const GeP2 &other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const GeP2 &other) const;
 
     fe X = {0};
     fe Y = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -54,16 +47,9 @@ typedef struct GeP2
 
 typedef struct GeP3
 {
-    bool operator==(const GeP3 &other) const
-    {
-        return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-               && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T, other.T, sizeof(T)) == 0;
-    }
+    bool operator==(const GeP3 &other) const;
 
-    bool operator!=(const GeP3 &other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const GeP3 &other) const;
 
     fe X = {0};
     fe Y = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -73,16 +59,9 @@ typedef struct GeP3
 
 typedef struct GeP1P1
 {
-    bool operator==(const GeP1P1 &other) const
-    {
-        return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-               && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T, other.T, sizeof(T)) == 0;
-    }
+    bool operator==(const GeP1P1 &other) const;
 
-    bool operator!=(const GeP1P1 &other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const GeP1P1 &other) const;
 
     fe X = {0};
     fe Y = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -92,16 +71,9 @@ typedef struct GeP1P1
 
 typedef struct GePrecomp
 {
-    bool operator==(const GePrecomp &other) const
-    {
-        return memcmp(yplusx, other.yplusx, sizeof(yplusx)) == 0 && memcmp(yminusx, other.yminusx, sizeof(yminusx)) == 0
-               && memcmp(xy2d, other.xy2d, sizeof(xy2d)) == 0;
-    }
+    bool operator==(const GePrecomp &other) const;
 
-    bool operator!=(const GePrecomp &other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const GePrecomp &other) const;
 
     fe yplusx = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     fe yminusx = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -110,16 +82,9 @@ typedef struct GePrecomp
 
 typedef struct GeCached
 {
-    bool operator==(const GeCached &other) const
-    {
-        return memcmp(YplusX, other.YplusX, sizeof(YplusX)) == 0 && memcmp(YminusX, other.YminusX, sizeof(YminusX)) == 0
-               && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T2d, other.T2d, sizeof(T2d)) == 0;
-    }
+    bool operator==(const GeCached &other) const;
 
-    bool operator!=(const GeCached &other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const GeCached &other) const;
 
     fe YplusX = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     fe YminusX = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0};

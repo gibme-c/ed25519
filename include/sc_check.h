@@ -29,7 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_SC_CHECK_H
 
 #include "sc.h"
-#include "sc_reduce32.h"
 
 int sc_check(const unsigned char *s);
 

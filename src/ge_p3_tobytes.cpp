@@ -27,6 +27,11 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p3_tobytes.h"
 
+#include "fe_invert.h"
+#include "fe_isnegative.h"
+#include "fe_mul.h"
+#include "fe_tobytes.h"
+
 void ge_p3_tobytes(unsigned char *s, const ge_p3 *h)
 {
     fe recip;

@@ -29,6 +29,17 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_double_scalarmult_base_negate_vartime.h"
 
+#include "ge_add.h"
+#include "ge_dsm_precomp.h"
+#include "ge_madd.h"
+#include "ge_msub.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p2_0.h"
+#include "ge_p2_dbl.h"
+#include "ge_sub.h"
+#include "slide.h"
+
 static const ge_precomp ge_Bi[8] = {
     {{25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
      {-12545711, 934262, -2722910, 3049990, -727428, 9406986, 12720692, 5043384, 19500929, -15469378},

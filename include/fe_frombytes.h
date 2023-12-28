@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_FROMBYTES_H
 
 #include "fe.h"
-#include "load_3.h"
-#include "load_4.h"
 
 void fe_frombytes(fe h, const unsigned char *s);
 

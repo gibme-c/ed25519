@@ -27,6 +27,11 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p2_dbl.h"
 
+#include "fe_add.h"
+#include "fe_sq.h"
+#include "fe_sq2.h"
+#include "fe_sub.h"
+
 /*
 r = 2 * p
 */

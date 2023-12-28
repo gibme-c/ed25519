@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_precomp_0.h"
 
+#include "fe_0.h"
+#include "fe_1.h"
+
 void ge_precomp_0(ge_precomp *h)
 {
     fe_1(h->yplusx);

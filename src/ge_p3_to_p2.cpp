@@ -27,6 +27,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p3_to_p2.h"
 
+#include "fe_copy.h"
+
 /*
 r = p
 */

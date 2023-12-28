@@ -28,18 +28,8 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_GE_FROMBYTES_NEGATE_VARTIME_H
 #define ED25519_GE_FROMBYTES_NEGATE_VARTIME_H
 
-#include "fe_1.h"
-#include "fe_add.h"
-#include "fe_divpowm1.h"
-#include "fe_frombytes.h"
-#include "fe_isnegative.h"
-#include "fe_isnonzero.h"
-#include "fe_mul.h"
-#include "fe_neg.h"
-#include "fe_sq.h"
-#include "fe_sub.h"
+
 #include "ge.h"
-#include "sc.h"
 
 int ge_frombytes_negate_vartime(ge_p3 *h, const unsigned char *s);
 

@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p3_dbl.h"
 
+#include "ge_p2_dbl.h"
+#include "ge_p3_to_p2.h"
+
 /*
 r = 2 * p
 */

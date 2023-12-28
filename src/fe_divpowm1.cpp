@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_divpowm1.h"
 
+#include "fe_mul.h"
+#include "fe_sq.h"
+
 // adapted from fe_pow22523.c
 
 void fe_divpowm1(fe r, const fe u, const fe v)

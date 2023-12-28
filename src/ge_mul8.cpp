@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_mul8.h"
 
+#include "ge_p1p1_to_p2.h"
+#include "ge_p2_dbl.h"
+
 void ge_mul8(ge_p1p1 *r, const ge_p2 *t)
 {
     ge_p2 u;

@@ -28,8 +28,6 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_GE_P2_0_H
 #define ED25519_GE_P2_0_H
 
-#include "fe_0.h"
-#include "fe_1.h"
 #include "ge.h"
 
 void ge_p2_0(ge_p2 *h);

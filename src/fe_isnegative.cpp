@@ -27,6 +27,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_isnegative.h"
 
+#include "fe_tobytes.h"
+
 /*
 return 1 if f is in {1,3,5,...,q-2}
 return 0 if f is in {0,2,4,...,q-1}

@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_cached_0.h"
 
+#include "fe_0.h"
+#include "fe_1.h"
+
 void ge_cached_0(ge_cached *r)
 {
     fe_1(r->YplusX);

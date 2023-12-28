@@ -27,6 +27,15 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_check_subgroup_precomp_negate_vartime.h"
 
+#include "fe_isnonzero.h"
+#include "fe_sub.h"
+#include "ge_add.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p2_dbl.h"
+#include "ge_p3_0.h"
+#include "ge_sub.h"
+
 int ge_check_subgroup_precomp_negate_vartime(const ge_dsmp p)
 {
     ge_p3 s;

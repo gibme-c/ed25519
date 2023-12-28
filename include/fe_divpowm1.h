@@ -29,9 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_DIVPOWM1_H
 
 #include "fe.h"
-#include "fe_mul.h"
-#include "fe_pow22523.h"
-#include "fe_sq.h"
 
 void fe_divpowm1(fe r, const fe u, const fe v);
 

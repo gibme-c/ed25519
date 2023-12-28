@@ -27,6 +27,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "sc_check.h"
 
+#include "sc_reduce32.h"
+
 #include <cstring>
 
 int sc_check(const unsigned char *s)

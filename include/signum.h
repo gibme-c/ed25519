@@ -28,7 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_SIGNUM_H
 #define ED25519_SIGNUM_H
 
-#include <stdint.h>
+#include <cstdint>
 
 int64_t signum(int64_t a);
 

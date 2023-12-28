@@ -28,6 +28,11 @@ For more information, please refer to <http://unlicense.org/>
 #include "ge_scalarmult.h"
 
 #if defined __SIZEOF_INT128__ && defined __USE_64BIT__
+
+#include "ge_add.h"
+#include "ge_frombytes_negate_vartime.h"
+#include "ge_p3_tobytes.h"
+
 void donna128_scalarmult_wrapper(ge_p1p1 *r, const unsigned char *a, const ge_p3 *A)
 {
     uint8_t result_bytes[32];

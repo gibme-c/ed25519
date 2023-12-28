@@ -27,6 +27,11 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_dsm_precomp.h"
 
+#include "ge_add.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p3_dbl.h"
+#include "ge_p3_to_cached.h"
+
 // adapted from ge_double_scalarmult.c
 
 void ge_dsm_precomp(ge_dsmp r, const ge_p3 *s)

@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p2_to_p3.h"
 
+#include "ge_frombytes_negate_vartime.h"
+#include "ge_tobytes.h"
+
 int ge_p2_to_p3(ge_p3 *r, const ge_p2 *p)
 {
     unsigned char bytes[32];

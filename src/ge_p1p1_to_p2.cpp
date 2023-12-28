@@ -27,6 +27,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p1p1_to_p2.h"
 
+#include "fe_mul.h"
+
 /*
 r = p
 */

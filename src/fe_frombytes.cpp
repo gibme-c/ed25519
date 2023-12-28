@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_frombytes.h"
 
+#include "load_3.h"
+#include "load_4.h"
+
 void fe_frombytes(fe h, const unsigned char *s)
 {
     int64_t h0 = load_4(s);

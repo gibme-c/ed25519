@@ -29,7 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_ISNEGATIVE_H
 
 #include "fe.h"
-#include "fe_tobytes.h"
 
 int fe_isnegative(const fe f);
 

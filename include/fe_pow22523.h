@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_POW22523_H
 
 #include "fe.h"
-#include "fe_mul.h"
-#include "fe_sq.h"
 
 void fe_pow22523(fe out, const fe z);
 

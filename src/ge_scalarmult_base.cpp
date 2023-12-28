@@ -27,6 +27,19 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_scalarmult_base.h"
 
+#include "equal.h"
+#include "fe_copy.h"
+#include "fe_neg.h"
+#include "ge_madd.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p1p1_to_p3.h"
+#include "ge_p2_dbl.h"
+#include "ge_p3_0.h"
+#include "ge_p3_dbl.h"
+#include "ge_precomp_0.h"
+#include "ge_precomp_cmov.h"
+#include "negative.h"
+
 static const ge_precomp ge_base[32][8] = {
     {{{25967493, -14356035, 29566456, 3660896, -12694345, 4014787, 27544626, -11754271, -6079156, 2047605},
       {-12545711, 934262, -2722910, 3049990, -727428, 9406986, 12720692, 5043384, 19500929, -15469378},

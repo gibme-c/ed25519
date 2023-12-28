@@ -28,10 +28,6 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_GE_P3_TOBYTES_H
 #define ED25519_GE_P3_TOBYTES_H
 
-#include "fe_invert.h"
-#include "fe_isnegative.h"
-#include "fe_mul.h"
-#include "fe_tobytes.h"
 #include "ge.h"
 
 void ge_p3_tobytes(unsigned char *s, const ge_p3 *h);

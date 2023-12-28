@@ -29,6 +29,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_cached_cmov.h"
 
+#include "fe_cmov.h"
+
 void ge_cached_cmov(ge_cached *t, const ge_cached *u, unsigned char b)
 {
     fe_cmov(t->YplusX, u->YplusX, b);

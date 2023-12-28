@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "fe_isnonzero.h"
 
+#include "fe_tobytes.h"
+#include "sc_isnonzero.h"
+
 /* From fe_isnonzero.c, modified */
 
 int fe_isnonzero(const fe f)

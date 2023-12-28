@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_GE_P2_TO_P3_H
 
 #include "ge.h"
-#include "ge_frombytes_negate_vartime.h"
-#include "ge_tobytes.h"
 
 int ge_p2_to_p3(ge_p3 *r, const ge_p2 *p);
 

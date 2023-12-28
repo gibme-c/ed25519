@@ -29,8 +29,6 @@ For more information, please refer to <http://unlicense.org/>
 #define ED25519_FE_ISNONZERO_H
 
 #include "fe.h"
-#include "fe_tobytes.h"
-#include "sc_isnonzero.h"
 
 int fe_isnonzero(const fe f);
 

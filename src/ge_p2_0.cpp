@@ -27,6 +27,9 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_p2_0.h"
 
+#include "fe_0.h"
+#include "fe_1.h"
+
 void ge_p2_0(ge_p2 *h)
 {
     fe_0(h->X);
