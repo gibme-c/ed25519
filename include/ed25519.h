@@ -41,6 +41,7 @@ For more information, please refer to <http://unlicense.org/>
 #include "fe_isnonzero.h"
 #include "fe_mul.h"
 #include "fe_neg.h"
+#include "fe_pow22523.h"
 #include "fe_sq.h"
 #include "fe_sq2.h"
 #include "fe_sub.h"

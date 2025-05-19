@@ -81,7 +81,97 @@ int main()
 
     ge_add(&H_p1p1, &H_point3, &H_cached);
 
-    std::cout << "Point Operations" << std::endl << std::endl;
+    std::cout << "Field Operations" << std::endl << std::endl;
+
+    benchmark_header();
+
+    const fe a = {-10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448, -12055116};
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_add(b, a, a);
+        },
+        "fe_add");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_sub(b, a, a);
+        },
+        "fe_sub");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_mul(b, a, a);
+        },
+        "fe_mul");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_divpowm1(b, a, a);
+        },
+        "fe_divpowm1");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_invert(b, a);
+        },
+        "fe_invert");
+
+    benchmark([&a]() { fe_isnegative(a); }, "fe_isnegative");
+
+    benchmark([&a]() { fe_isnonzero(a); }, "fe_isnonzero");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_neg(b, a);
+        },
+        "fe_neg");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_pow22523(b, a);
+        },
+        "fe_isnonzero");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_sq(b, a);
+        },
+        "fe_sq");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_sq2(b, a);
+        },
+        "fe_sq2");
+
+    benchmark(
+        [&a]()
+        {
+            unsigned char bytes[32] = {0};
+            fe_tobytes(bytes, a);
+        },
+        "fe_tobytes");
+
+    std::cout << std::endl << "Group Operations" << std::endl << std::endl;
 
     if (H_point3 == G_point3 || H_point2 == G_point2 || H_cached == G_cached || H_p1p1 == G_p1p1)
     {
