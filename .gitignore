@@ -148,6 +148,10 @@ fabric.properties
 
 # build directories
 build/
+build-gcc-actual/
+build-gcc/
+build-clang/
+build-msvc
 prebuilds/
 dist/
 
