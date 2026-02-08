@@ -25,10 +25,20 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file benchmark.cpp
+ * @brief Benchmark driver for Ed25519 library operations.
+ */
+
 #include "ed25519.h"
+#include "fe_frombytes.h"
+
+#include <cstring>
 
 int main()
 {
+    const auto bench_state = benchmark_setup();
+
     std::cout << "Benchmark Timings" << std::endl << std::endl;
 
     const uint8_t G[32] = {0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
@@ -81,11 +91,84 @@ int main()
 
     ge_add(&H_p1p1, &H_point3, &H_cached);
 
+    ge_precomp G_precomp;
+
+    ge_precomp_0(&G_precomp);
+
+    ge_dsmp G_dsmp;
+
+    ge_dsm_precomp(G_dsmp, &G_point3);
+
+    ge_p3 G_point3_nonneg;
+
+    ge_frombytes_negate_vartime(&G_point3_nonneg, G);
+
+    ge_dsmp G_dsmp_nonneg;
+
+    ge_dsm_precomp(G_dsmp_nonneg, &G_point3_nonneg);
+
+    // =========================================================================
+    // Section 1: Field Operations
+    // =========================================================================
+
     std::cout << "Field Operations" << std::endl << std::endl;
 
     benchmark_header();
 
+#if ED25519_PLATFORM_64BIT
+    const fe a = {0x34dca135978a3ULL, 0x1a8283b156ebdULL, 0x5e7a26001c029ULL, 0x739c663a03cbbULL, 0x52036cee2b6ffULL};
+#else
     const fe a = {-10913610, 13857413, -15372611, 6949391, 114729, -8787816, -6275908, -3247719, -18696448, -12055116};
+#endif
+
+    benchmark(
+        []()
+        {
+            fe h;
+            fe_0(h);
+        },
+        "fe_0");
+
+    benchmark(
+        []()
+        {
+            fe h;
+            fe_1(h);
+        },
+        "fe_1");
+
+    benchmark(
+        [&a]()
+        {
+            fe h;
+            fe_copy(h, a);
+        },
+        "fe_copy");
+
+    benchmark(
+        [&a]()
+        {
+            fe f;
+            fe_copy(f, a);
+            fe_cmov(f, a, 1);
+        },
+        "fe_cmov");
+
+    benchmark(
+        [&G]()
+        {
+            fe h;
+            fe_frombytes(h, G);
+        },
+        "fe_frombytes");
+
+    benchmark(
+        [&a]()
+        {
+            unsigned char bytes[32] = {0};
+            fe_tobytes(bytes, a);
+        },
+        "fe_tobytes");
 
     benchmark(
         [&a]()
@@ -107,34 +190,6 @@ int main()
         [&a]()
         {
             fe b;
-            fe_mul(b, a, a);
-        },
-        "fe_mul");
-
-    benchmark(
-        [&a]()
-        {
-            fe b;
-            fe_divpowm1(b, a, a);
-        },
-        "fe_divpowm1");
-
-    benchmark(
-        [&a]()
-        {
-            fe b;
-            fe_invert(b, a);
-        },
-        "fe_invert");
-
-    benchmark([&a]() { fe_isnegative(a); }, "fe_isnegative");
-
-    benchmark([&a]() { fe_isnonzero(a); }, "fe_isnonzero");
-
-    benchmark(
-        [&a]()
-        {
-            fe b;
             fe_neg(b, a);
         },
         "fe_neg");
@@ -143,9 +198,9 @@ int main()
         [&a]()
         {
             fe b;
-            fe_pow22523(b, a);
+            fe_mul(b, a, a);
         },
-        "fe_isnonzero");
+        "fe_mul");
 
     benchmark(
         [&a]()
@@ -166,12 +221,34 @@ int main()
     benchmark(
         [&a]()
         {
-            unsigned char bytes[32] = {0};
-            fe_tobytes(bytes, a);
+            fe b;
+            fe_divpowm1(b, a, a);
         },
-        "fe_tobytes");
+        "fe_divpowm1");
 
-    std::cout << std::endl << "Group Operations" << std::endl << std::endl;
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_pow22523(b, a);
+        },
+        "fe_pow22523");
+
+    benchmark(
+        [&a]()
+        {
+            fe b;
+            fe_invert(b, a);
+        },
+        "fe_invert");
+
+    benchmark([&a]() { benchmark_do_not_optimize(fe_isnegative(a)); }, "fe_isnegative");
+
+    benchmark([&a]() { benchmark_do_not_optimize(fe_isnonzero(a)); }, "fe_isnonzero");
+
+    // =========================================================================
+    // Section 2: Group Element Serialization
+    // =========================================================================
 
     if (H_point3 == G_point3 || H_point2 == G_point2 || H_cached == G_cached || H_p1p1 == G_p1p1)
     {
@@ -179,6 +256,8 @@ int main()
 
         return 1;
     }
+
+    std::cout << std::endl << "Group Element Serialization" << std::endl << std::endl;
 
     benchmark_header();
 
@@ -192,6 +271,33 @@ int main()
         "ge_frombytes_negate_vartime");
 
     benchmark(
+        [&G]()
+        {
+            ge_p2 point;
+
+            ge_fromfe_frombytes_negate_vartime(&point, G);
+        },
+        "ge_fromfe_frombytes_negate_vartime");
+
+    benchmark(
+        [&G]()
+        {
+            ge_p3 point;
+
+            ge_frombytes_negate_vartime(&point, G);
+        },
+        "ge_frombytes_vartime");
+
+    benchmark(
+        [&G]()
+        {
+            ge_p2 point;
+
+            ge_fromfe_frombytes_negate_vartime(&point, G);
+        },
+        "ge_fromfe_frombytes_vartime");
+
+    benchmark(
         [&G_point3]()
         {
             uint8_t bytes[32] = {0};
@@ -199,6 +305,55 @@ int main()
             ge_p3_tobytes(reinterpret_cast<unsigned char *>(&bytes), &G_point3);
         },
         "ge_p3_tobytes");
+
+    benchmark(
+        [&G_point2]()
+        {
+            uint8_t bytes[32] = {0};
+
+            ge_tobytes(reinterpret_cast<unsigned char *>(&bytes), &G_point2);
+        },
+        "ge_tobytes");
+
+    // =========================================================================
+    // Section 3: Group Element Conversions
+    // =========================================================================
+
+    std::cout << std::endl << "Group Element Conversions" << std::endl << std::endl;
+
+    benchmark_header();
+
+    benchmark(
+        []()
+        {
+            ge_p2 h;
+            ge_p2_0(&h);
+        },
+        "ge_p2_0");
+
+    benchmark(
+        []()
+        {
+            ge_p3 h;
+            ge_p3_0(&h);
+        },
+        "ge_p3_0");
+
+    benchmark(
+        []()
+        {
+            ge_cached h;
+            ge_cached_0(&h);
+        },
+        "ge_cached_0");
+
+    benchmark(
+        []()
+        {
+            ge_precomp h;
+            ge_precomp_0(&h);
+        },
+        "ge_precomp_0");
 
     benchmark(
         [&G_point3]()
@@ -217,33 +372,6 @@ int main()
             ge_p3_to_cached(&point, &G_point3);
         },
         "ge_p3_to_cached");
-
-    benchmark(
-        [&G_point3]()
-        {
-            ge_dsmp point;
-
-            ge_dsm_precomp(point, &G_point3);
-        },
-        "ge_dsm_precomp");
-
-    benchmark(
-        [&G]()
-        {
-            ge_p2 point;
-
-            ge_fromfe_frombytes_negate_vartime(&point, G);
-        },
-        "ge_fromfe_frombytes_negate_vartime");
-
-    benchmark(
-        [&G_point2]()
-        {
-            uint8_t bytes[32] = {0};
-
-            ge_tobytes(reinterpret_cast<unsigned char *>(&bytes), &G_point2);
-        },
-        "ge_tobytes");
 
     benchmark(
         [&G_point2]()
@@ -273,6 +401,30 @@ int main()
         "ge_p1p1_to_p3");
 
     benchmark(
+        [&G_cached]()
+        {
+            ge_cached t;
+            ge_cached_cmov(&t, &G_cached, 1);
+        },
+        "ge_cached_cmov");
+
+    benchmark(
+        [&G_precomp]()
+        {
+            ge_precomp t;
+            ge_precomp_cmov(&t, &G_precomp, 1);
+        },
+        "ge_precomp_cmov");
+
+    // =========================================================================
+    // Section 4: Group Element Arithmetic
+    // =========================================================================
+
+    std::cout << std::endl << "Group Element Arithmetic" << std::endl << std::endl;
+
+    benchmark_header();
+
+    benchmark(
         [&G_point3, &G_cached]()
         {
             ge_p1p1 point;
@@ -291,13 +443,22 @@ int main()
         "ge_sub");
 
     benchmark(
-        [&G_point2]()
+        [&G_point3, &G_precomp]()
         {
-            ge_p1p1 point;
+            ge_p1p1 r;
 
-            ge_mul8(&point, &G_point2);
+            ge_madd(&r, &G_point3, &G_precomp);
         },
-        "ge_mul8");
+        "ge_madd");
+
+    benchmark(
+        [&G_point3, &G_precomp]()
+        {
+            ge_p1p1 r;
+
+            ge_msub(&r, &G_point3, &G_precomp);
+        },
+        "ge_msub");
 
     benchmark(
         [&G_point2]()
@@ -318,33 +479,43 @@ int main()
         "ge_p3_dbl");
 
     benchmark(
+        [&G_point2]()
+        {
+            ge_p1p1 point;
+
+            ge_mul8(&point, &G_point2);
+        },
+        "ge_mul8");
+
+    // =========================================================================
+    // Section 5: Scalar Multiplication
+    // =========================================================================
+
+    std::cout << std::endl << "Scalar Multiplication" << std::endl << std::endl;
+
+    benchmark_header();
+
+    benchmark(
+        [&G_point3]()
+        {
+            ge_dsmp point;
+
+            ge_dsm_precomp(point, &G_point3);
+        },
+        "ge_dsm_precomp");
+
+    benchmark(
+        [&G_dsmp]() { benchmark_do_not_optimize(ge_check_subgroup_precomp_negate_vartime(G_dsmp)); },
+        "ge_check_subgroup_precomp_negate_vartime");
+
+    benchmark(
         [&scalar]()
         {
             ge_p1p1 point;
 
             ge_scalarmult_base(&point, scalar);
         },
-        "ge_scalarmult_base");
-
-    benchmark(
-        [&G_point3, &scalar]()
-        {
-            ge_p1p1 point;
-
-            ref10_scalarmult(&point, scalar, &G_point3);
-        },
-        "ref10_scalarmult");
-
-#if defined __SIZEOF_INT128__ && defined __USE_64BIT__
-    benchmark(
-        [&scalar, &G]()
-        {
-            uint8_t bytes[32];
-
-            donna128_scalarmult(bytes, scalar, G);
-        },
-        "donna128_scalarmult");
-#endif
+        "ge_scalarmult_base_ct");
 
     benchmark(
         [&G_point3, &scalar]()
@@ -353,7 +524,7 @@ int main()
 
             ge_scalarmult(&point, scalar, &G_point3);
         },
-        "#ge_scalarmult#");
+        "ge_scalarmult_ct");
 
     benchmark(
         [&G_point3, &scalar]()
@@ -362,20 +533,32 @@ int main()
 
             ge_double_scalarmult_base_negate_vartime(&point, scalar, &G_point3, scalar);
         },
-        "ge_double_scalarmult_base");
+        "ge_double_scalarmult_base_negate_vartime");
 
     benchmark(
-        [&G_point3, &scalar, &G_cached]()
+        [&G_point3, &scalar, &G_dsmp]()
         {
             ge_p1p1 point;
 
-            ge_double_scalarmult_negate_vartime(&point, scalar, &G_point3, scalar, &G_cached);
+            ge_double_scalarmult_negate_vartime(&point, scalar, &G_point3, scalar, G_dsmp);
         },
-        "ge_double_scalarmult");
+        "ge_double_scalarmult_negate_vartime");
+
+    // =========================================================================
+    // Section 6: Scalar Operations
+    // =========================================================================
 
     std::cout << std::endl << "Scalar Operations" << std::endl << std::endl;
 
     benchmark_header();
+
+    benchmark(
+        []()
+        {
+            unsigned char s[32] = {0};
+            sc_0(s);
+        },
+        "sc_0");
 
     benchmark(
         [&scalar]()
@@ -422,13 +605,26 @@ int main()
         },
         "sc_mulsub");
 
-    benchmark([&scalar]() { sc_reduce((unsigned char *)&scalar); }, "sc_reduce");
+    benchmark([&scalar]() { sc_reduce32((unsigned char *)&scalar); }, "sc_reduce(32)");
 
-    benchmark([&scalar]() { sc_reduce32((unsigned char *)&scalar); }, "sc_reduce32");
+    benchmark(
+        [&scalar]()
+        {
+            unsigned char buf[64] = {0};
+            std::memcpy(buf, scalar, 32);
+            sc_reduce(buf);
+        },
+        "sc_reduce(64)");
 
-    benchmark([&scalar]() { sc_reduce_rfc((unsigned char *)&scalar); }, "sc_reduce_rfc");
+    benchmark([&scalar]() { sc_reduce_rfc((unsigned char *)&scalar); }, "sc_clamp");
 
-    benchmark([&scalar]() { sc_check((unsigned char *)&scalar); }, "sc_check");
+    benchmark(
+        [&scalar]() { benchmark_do_not_optimize(sc_check((unsigned char *)&scalar)); }, "sc_check_reduced");
 
-    benchmark([&scalar]() { sc_check_rfc((unsigned char *)&scalar); }, "sc_check_rfc");
+    benchmark(
+        [&scalar]() { benchmark_do_not_optimize(sc_check_rfc((unsigned char *)&scalar)); }, "sc_check_clamped");
+
+    benchmark([&scalar]() { benchmark_do_not_optimize(sc_isnonzero(scalar)); }, "sc_isnonzero");
+
+    benchmark_teardown(bench_state);
 }
