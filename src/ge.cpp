@@ -27,10 +27,25 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge.h"
 
+#include <cstddef>
+
+static int ct_memcmp(const void *a, const void *b, size_t len)
+{
+    const unsigned char *pa = static_cast<const unsigned char *>(a);
+    const unsigned char *pb = static_cast<const unsigned char *>(b);
+    unsigned char diff = 0;
+    for (size_t i = 0; i < len; ++i)
+        diff |= pa[i] ^ pb[i];
+    return diff;
+}
+
 bool ge_p2::operator==(const GeP2 &other) const
 {
-    return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-           && memcmp(Z, other.Z, sizeof(Z)) == 0;
+    int diff = 0;
+    diff |= ct_memcmp(X, other.X, sizeof(X));
+    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
+    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
+    return diff == 0;
 }
 
 bool ge_p2::operator!=(const GeP2 &other) const
@@ -40,8 +55,12 @@ bool ge_p2::operator!=(const GeP2 &other) const
 
 bool ge_p3::operator==(const GeP3 &other) const
 {
-    return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-           && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T, other.T, sizeof(T)) == 0;
+    int diff = 0;
+    diff |= ct_memcmp(X, other.X, sizeof(X));
+    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
+    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
+    diff |= ct_memcmp(T, other.T, sizeof(T));
+    return diff == 0;
 }
 
 bool ge_p3::operator!=(const GeP3 &other) const
@@ -51,8 +70,12 @@ bool ge_p3::operator!=(const GeP3 &other) const
 
 bool ge_p1p1::operator==(const GeP1P1 &other) const
 {
-    return memcmp(X, other.X, sizeof(X)) == 0 && memcmp(Y, other.Y, sizeof(Y)) == 0
-           && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T, other.T, sizeof(T)) == 0;
+    int diff = 0;
+    diff |= ct_memcmp(X, other.X, sizeof(X));
+    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
+    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
+    diff |= ct_memcmp(T, other.T, sizeof(T));
+    return diff == 0;
 }
 
 bool ge_p1p1::operator!=(const GeP1P1 &other) const
@@ -62,8 +85,11 @@ bool ge_p1p1::operator!=(const GeP1P1 &other) const
 
 bool ge_precomp::operator==(const GePrecomp &other) const
 {
-    return memcmp(yplusx, other.yplusx, sizeof(yplusx)) == 0 && memcmp(yminusx, other.yminusx, sizeof(yminusx)) == 0
-           && memcmp(xy2d, other.xy2d, sizeof(xy2d)) == 0;
+    int diff = 0;
+    diff |= ct_memcmp(yplusx, other.yplusx, sizeof(yplusx));
+    diff |= ct_memcmp(yminusx, other.yminusx, sizeof(yminusx));
+    diff |= ct_memcmp(xy2d, other.xy2d, sizeof(xy2d));
+    return diff == 0;
 }
 
 bool ge_precomp::operator!=(const GePrecomp &other) const
@@ -73,8 +99,12 @@ bool ge_precomp::operator!=(const GePrecomp &other) const
 
 bool ge_cached::operator==(const GeCached &other) const
 {
-    return memcmp(YplusX, other.YplusX, sizeof(YplusX)) == 0 && memcmp(YminusX, other.YminusX, sizeof(YminusX)) == 0
-           && memcmp(Z, other.Z, sizeof(Z)) == 0 && memcmp(T2d, other.T2d, sizeof(T2d)) == 0;
+    int diff = 0;
+    diff |= ct_memcmp(YplusX, other.YplusX, sizeof(YplusX));
+    diff |= ct_memcmp(YminusX, other.YminusX, sizeof(YminusX));
+    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
+    diff |= ct_memcmp(T2d, other.T2d, sizeof(T2d));
+    return diff == 0;
 }
 
 bool ge_cached::operator!=(const GeCached &other) const

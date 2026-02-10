@@ -25,11 +25,36 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_precomp_cmov.h
+ * @brief Constant-time conditional move for precomputed points.
+ *
+ * Applies fe_cmov to each field element of a ge_precomp point. Used during
+ * constant-time fixed-base scalar multiplication to select from the base
+ * point table without leaking the scalar digit through side channels.
+ */
+
 #ifndef ED25519_GE_PRECOMP_CMOV_H
 #define ED25519_GE_PRECOMP_CMOV_H
 
 #include "ge.h"
 
-void ge_precomp_cmov(ge_precomp *t, const ge_precomp *u, unsigned char b);
+/**
+ * @brief Conditionally replaces t with u in constant time.
+ *
+ * If b is nonzero, sets t = u. If b is zero, t is unchanged.
+ *
+ * @param t Point to conditionally overwrite.
+ * @param u Source point.
+ * @param b Condition flag (0 or 1).
+ */
+#include "fe_cmov.h"
+
+static inline void ge_precomp_cmov(ge_precomp *t, const ge_precomp *u, unsigned char b)
+{
+    fe_cmov(t->yplusx, u->yplusx, b);
+    fe_cmov(t->yminusx, u->yminusx, b);
+    fe_cmov(t->xy2d, u->xy2d, b);
+}
 
 #endif // ED25519_GE_PRECOMP_CMOV_H

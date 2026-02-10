@@ -25,11 +25,39 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_dsm_precomp.h
+ * @brief Build precomputation table for double scalar multiplication.
+ *
+ * Builds a table of odd multiples [A, 3A, 5A, 7A, 9A, 11A, 13A, 15A] in
+ * cached form for a given point A. The sliding-window double scalar
+ * multiplication algorithm looks up these precomputed points by window
+ * digit, avoiding expensive recomputations during the main loop.
+ */
+
 #ifndef ED25519_GE_DSM_PRECOMP_H
 #define ED25519_GE_DSM_PRECOMP_H
 
 #include "ge.h"
 
-void ge_dsm_precomp(ge_dsmp r, const ge_p3 *s);
+/**
+ * @brief Builds a table of [A, 3A, 5A, 7A, 9A, 11A, 13A, 15A] for double scalar multiplication.
+ *
+ * @param r Output precomputation table (8 cached points).
+ * @param s Input extended point.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_dsm_precomp_x64(ge_dsmp r, const ge_p3 *s);
+static inline void ge_dsm_precomp(ge_dsmp r, const ge_p3 *s)
+{
+    ge_dsm_precomp_x64(r, s);
+}
+#else
+void ge_dsm_precomp_portable(ge_dsmp r, const ge_p3 *s);
+static inline void ge_dsm_precomp(ge_dsmp r, const ge_p3 *s)
+{
+    ge_dsm_precomp_portable(r, s);
+}
+#endif
 
 #endif // ED25519_GE_DSM_PRECOMP_H

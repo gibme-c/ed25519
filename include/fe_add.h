@@ -25,11 +25,50 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_add.h
+ * @brief Field element addition over GF(2^255 - 19).
+ *
+ * Just adds the limbs pairwise -- no carries, no reduction. This is safe
+ * because the limb representation has enough headroom for several additions
+ * before a multiplication (which handles carries internally) is needed.
+ */
+
 #ifndef ED25519_FE_ADD_H
 #define ED25519_FE_ADD_H
 
 #include "fe.h"
 
-void fe_add(fe h, const fe f, const fe g);
+/**
+ * @brief Adds two field elements: h = f + g.
+ *
+ * @param h Output field element.
+ * @param f First input field element.
+ * @param g Second input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+static inline void fe_add(fe h, const fe f, const fe g)
+{
+    h[0] = f[0] + g[0];
+    h[1] = f[1] + g[1];
+    h[2] = f[2] + g[2];
+    h[3] = f[3] + g[3];
+    h[4] = f[4] + g[4];
+}
+#else
+static inline void fe_add(fe h, const fe f, const fe g)
+{
+    h[0] = f[0] + g[0];
+    h[1] = f[1] + g[1];
+    h[2] = f[2] + g[2];
+    h[3] = f[3] + g[3];
+    h[4] = f[4] + g[4];
+    h[5] = f[5] + g[5];
+    h[6] = f[6] + g[6];
+    h[7] = f[7] + g[7];
+    h[8] = f[8] + g[8];
+    h[9] = f[9] + g[9];
+}
+#endif
 
 #endif // ED25519_FE_ADD_H

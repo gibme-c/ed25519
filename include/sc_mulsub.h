@@ -25,11 +25,40 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_mulsub.h
+ * @brief Scalar multiply-subtract modulo the group order l.
+ *
+ * Computes s = c - a*b mod l. The mirror image of sc_muladd, used in
+ * certain verification and proof schemes that express the signature equation
+ * with a subtraction instead of an addition.
+ */
+
 #ifndef ED25519_SC_MULSUB_H
 #define ED25519_SC_MULSUB_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_mulsub(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+/**
+ * @brief Computes s = (c - a * b) mod l.
+ *
+ * @param s Output 32-byte scalar.
+ * @param a First multiplicand (32-byte scalar).
+ * @param b Second multiplicand (32-byte scalar).
+ * @param c Value to subtract from (32-byte scalar).
+ */
+#if ED25519_PLATFORM_64BIT
+void sc_mulsub_x64(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+static inline void sc_mulsub(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c)
+{
+    sc_mulsub_x64(s, a, b, c);
+}
+#else
+void sc_mulsub_portable(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+static inline void sc_mulsub(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c)
+{
+    sc_mulsub_portable(s, a, b, c);
+}
+#endif
 
 #endif // ED25519_SC_MULSUB_H

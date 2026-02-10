@@ -25,11 +25,54 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p3_to_cached.h
+ * @brief Convert an extended point to cached representation.
+ *
+ * Precomputes Y+X, Y-X, Z, and 2*d*T from a ge_p3 point. These values are
+ * exactly what ge_add and ge_sub need from the second operand, so computing
+ * them once and reusing them saves work when the same point is added
+ * multiple times (as in scalar multiplication with a precomputed table).
+ */
+
 #ifndef ED25519_GE_P3_TO_CACHED_H
 #define ED25519_GE_P3_TO_CACHED_H
 
+#include "fe_add.h"
+#include "fe_copy.h"
+#include "fe_sub.h"
 #include "ge.h"
 
-void ge_p3_to_cached(ge_cached *r, const ge_p3 *p);
+/**
+ * @brief Converts ge_p3 to ge_cached for fast repeated addition.
+ *
+ * Computes Y+X, Y-X, Z, and T*2d.
+ *
+ * @param r Output cached point.
+ * @param p Input extended point.
+ */
+#if ED25519_PLATFORM_64BIT
+#include "x64/fe51_chain.h"
+static const fe ge_p3_to_cached_fe_d2 =
+    {0x69b9426b2f159ULL, 0x35050762add7aULL, 0x3cf44c0038052ULL, 0x6738cc7407977ULL, 0x2406d9dc56dffULL};
+static inline void ge_p3_to_cached(ge_cached *r, const ge_p3 *p)
+{
+    fe_add(r->YplusX, p->Y, p->X);
+    fe_sub(r->YminusX, p->Y, p->X);
+    fe_copy(r->Z, p->Z);
+    fe51_chain_mul(r->T2d, p->T, ge_p3_to_cached_fe_d2);
+}
+#else
+#include "portable/fe25_chain.h"
+static const fe ge_p3_to_cached_fe_d2 =
+    {-21827239, -5839606, -30745221, 13898782, 229458, 15978800, -12551817, -6495438, 29715968, 9444199};
+static inline void ge_p3_to_cached(ge_cached *r, const ge_p3 *p)
+{
+    fe_add(r->YplusX, p->Y, p->X);
+    fe_sub(r->YminusX, p->Y, p->X);
+    fe_copy(r->Z, p->Z);
+    fe25_chain_mul(r->T2d, p->T, ge_p3_to_cached_fe_d2);
+}
+#endif
 
 #endif // ED25519_GE_P3_TO_CACHED_H

@@ -25,11 +25,24 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_0.h
+ * @brief Set a scalar to zero.
+ */
+
 #ifndef ED25519_SC_0_H
 #define ED25519_SC_0_H
 
-#include "sc.h"
+#include <cstring>
 
-void sc_0(unsigned char *s);
+/**
+ * @brief Sets the 32-byte scalar s to zero.
+ *
+ * @param s Output 32-byte scalar.
+ */
+static inline void sc_0(unsigned char *s)
+{
+    std::memset(s, 0, 32);
+}
 
 #endif // ED25519_SC_0_H

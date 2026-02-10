@@ -25,11 +25,40 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
-#ifndef ED25519_GE_CHECK_SUBGROUP_PRECOMP_VARTIME_H
-#define ED25519_GE_CHECK_SUBGROUP_PRECOMP_VARTIME_H
+/**
+ * @file ge_check_subgroup_precomp_negate_vartime.h
+ * @brief Subgroup membership check using precomputation (negated input).
+ *
+ * Same as ge_check_subgroup_precomp_vartime but for a negated point. Used
+ * when the caller already has -A precomputed (common in verification flows
+ * that negate the public key during decompression).
+ */
+
+#ifndef ED25519_GE_CHECK_SUBGROUP_PRECOMP_NEGATE_VARTIME_H
+#define ED25519_GE_CHECK_SUBGROUP_PRECOMP_NEGATE_VARTIME_H
 
 #include "ge.h"
 
-int ge_check_subgroup_precomp_negate_vartime(const ge_dsmp p);
+/**
+ * @brief Checks if a point is in the prime-order subgroup (variable-time).
+ *
+ * Verifies that l * A = 0 (the neutral element) using precomputed tables.
+ *
+ * @param A Precomputation table for the point to check.
+ * @return 0 if the point is in the subgroup, nonzero otherwise.
+ */
+#if ED25519_PLATFORM_64BIT
+int ge_check_subgroup_precomp_negate_vartime_x64(const ge_dsmp p);
+static inline int ge_check_subgroup_precomp_negate_vartime(const ge_dsmp p)
+{
+    return ge_check_subgroup_precomp_negate_vartime_x64(p);
+}
+#else
+int ge_check_subgroup_precomp_negate_vartime_portable(const ge_dsmp p);
+static inline int ge_check_subgroup_precomp_negate_vartime(const ge_dsmp p)
+{
+    return ge_check_subgroup_precomp_negate_vartime_portable(p);
+}
+#endif
 
-#endif // ED25519_GE_CHECK_SUBGROUP_PRECOMP_VARTIME_H
+#endif // ED25519_GE_CHECK_SUBGROUP_PRECOMP_NEGATE_VARTIME_H

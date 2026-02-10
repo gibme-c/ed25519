@@ -25,11 +25,45 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_reduce.h
+ * @brief Reduce a scalar modulo the group order l.
+ *
+ * Takes either 32 or 64 bytes and reduces them modulo l. The 64-byte
+ * variant is used after hashing in Ed25519 signing and verification: SHA-512
+ * produces 64 bytes, which must be reduced to a scalar modulo l before use
+ * in the signature equation. The 32-byte variant handles already-small
+ * values that just need a single conditional subtraction.
+ */
+
 #ifndef ED25519_SC_REDUCE_H
 #define ED25519_SC_REDUCE_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_reduce(unsigned char *s);
+#include <cstddef>
+
+/**
+ * @brief Reduces a scalar modulo l in place.
+ *
+ * Supports both 32-byte and 64-byte inputs. The result is stored in the first 32 bytes of s.
+ *
+ * @param s Input/output scalar buffer.
+ * @param len Length of the input: 32 or 64 bytes.
+ */
+void sc_reduce_portable(unsigned char *s, size_t len);
+
+#if ED25519_PLATFORM_64BIT
+void sc_reduce_x64(unsigned char *s, size_t len);
+static inline void sc_reduce(unsigned char *s, size_t len)
+{
+    sc_reduce_x64(s, len);
+}
+#else
+static inline void sc_reduce(unsigned char *s, size_t len)
+{
+    sc_reduce_portable(s, len);
+}
+#endif
 
 #endif // ED25519_SC_REDUCE_H

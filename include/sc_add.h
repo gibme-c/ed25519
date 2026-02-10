@@ -25,11 +25,40 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_add.h
+ * @brief Scalar addition modulo the group order l.
+ *
+ * Adds two 32-byte scalars and reduces the result modulo l (the group
+ * order). On 64-bit platforms this uses a fast 4-limb representation with
+ * native carry propagation; on 32-bit it falls back to portable's byte-level
+ * arithmetic.
+ */
+
 #ifndef ED25519_SC_ADD_H
 #define ED25519_SC_ADD_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_add(unsigned char *s, const unsigned char *a, const unsigned char *b);
+/**
+ * @brief Adds two scalars modulo l: s = a + b mod l.
+ *
+ * @param s Output 32-byte scalar.
+ * @param a First input 32-byte scalar.
+ * @param b Second input 32-byte scalar.
+ */
+#if ED25519_PLATFORM_64BIT
+void sc_add_x64(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_add(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_add_x64(s, a, b);
+}
+#else
+void sc_add_portable(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_add(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_add_portable(s, a, b);
+}
+#endif
 
 #endif // ED25519_SC_ADD_H

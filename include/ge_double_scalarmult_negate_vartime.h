@@ -25,16 +25,72 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_double_scalarmult_negate_vartime.h
+ * @brief Variable-time double scalar multiplication.
+ *
+ * Computes r = a*A + b*(-B) for arbitrary point A and base point B, using
+ * the Strauss (interleaved) method. This processes both scalars a and b
+ * simultaneously, sharing the doubling steps, which is almost twice as fast
+ * as doing two separate scalar multiplications. Variable-time is safe here
+ * because this is used in signature verification where all inputs are
+ * public. Uses sliding-window decomposition (see slide.h) on both scalars
+ * for further speedup.
+ */
+
 #ifndef ED25519_GE_DOUBLE_SCALARMULT_VARTIME_H
 #define ED25519_GE_DOUBLE_SCALARMULT_VARTIME_H
 
 #include "ge.h"
 
-void ge_double_scalarmult_negate_vartime(
+#if ED25519_SIMD
+#include "ed25519_dispatch.h"
+#endif
+
+/**
+ * @brief Computes r = a*A + b*B (variable-time) using precomputation table.
+ *
+ * @param r Output projective point.
+ * @param a First 32-byte scalar.
+ * @param A Precomputation table for the first point.
+ * @param b Second 32-byte scalar.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_double_scalarmult_negate_vartime_x64(
     ge_p1p1 *t,
     const unsigned char *a,
     const ge_p3 *A,
     const unsigned char *b,
     const ge_dsmp Bi);
+static inline void ge_double_scalarmult_negate_vartime(
+    ge_p1p1 *t,
+    const unsigned char *a,
+    const ge_p3 *A,
+    const unsigned char *b,
+    const ge_dsmp Bi)
+{
+#if ED25519_SIMD
+    ed25519_get_dispatch().dsm_negate_vt(t, a, A, b, Bi);
+#else
+    ge_double_scalarmult_negate_vartime_x64(t, a, A, b, Bi);
+#endif
+}
+#else
+void ge_double_scalarmult_negate_vartime_portable(
+    ge_p1p1 *t,
+    const unsigned char *a,
+    const ge_p3 *A,
+    const unsigned char *b,
+    const ge_dsmp Bi);
+static inline void ge_double_scalarmult_negate_vartime(
+    ge_p1p1 *t,
+    const unsigned char *a,
+    const ge_p3 *A,
+    const unsigned char *b,
+    const ge_dsmp Bi)
+{
+    ge_double_scalarmult_negate_vartime_portable(t, a, A, b, Bi);
+}
+#endif
 
 #endif // ED25519_GE_DOUBLE_SCALARMULT_VARTIME_H

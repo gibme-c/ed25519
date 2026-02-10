@@ -25,11 +25,38 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file equal.h
+ * @brief Constant-time byte equality comparison.
+ *
+ * Returns 1 if two bytes are equal, 0 otherwise, without using any branches.
+ * Uses XOR and bit manipulation to produce the result. This is a low-level
+ * helper for constant-time table lookups in scalar multiplication.
+ */
+
 #ifndef ED25519_EQUAL_H
 #define ED25519_EQUAL_H
 
+#include "ct_barrier.h"
+
 #include <cstdint>
 
-unsigned char equal(signed char b, signed char c);
+/**
+ * @brief Tests two bytes for equality in constant time.
+ *
+ * @param b First byte value (as unsigned char).
+ * @param c Second byte value (as unsigned char).
+ * @return 1 if equal, 0 otherwise.
+ */
+static inline unsigned char equal(signed char b, signed char c)
+{
+    unsigned char ub = b;
+    unsigned char uc = c;
+    unsigned char x = ub ^ uc; /* 0: yes; 1..255: no */
+    uint32_t y = ct_barrier_u32(x); /* 0: yes; 1..255: no */
+    y -= 1; /* 4294967295: yes; 0..254: no */
+    y >>= 31; /* 1: yes; 0: no */
+    return (unsigned char)y;
+}
 
 #endif // ED25519_EQUAL_H

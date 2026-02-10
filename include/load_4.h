@@ -25,11 +25,30 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file load_4.h
+ * @brief Load 4 bytes as a little-endian uint64_t.
+ */
+
 #ifndef ED25519_LOAD_4_H
 #define ED25519_LOAD_4_H
 
 #include <cstdint>
 
-uint64_t load_4(const unsigned char *in);
+/**
+ * @brief Loads 4 bytes from memory in little-endian order.
+ *
+ * @param in Pointer to at least 4 bytes.
+ * @return The 4-byte value as a uint64_t.
+ */
+static inline uint64_t load_4(const unsigned char *in)
+{
+    uint64_t result;
+    result = (uint64_t)in[0];
+    result |= ((uint64_t)in[1]) << 8;
+    result |= ((uint64_t)in[2]) << 16;
+    result |= ((uint64_t)in[3]) << 24;
+    return result;
+}
 
 #endif // ED25519_LOAD_4_H

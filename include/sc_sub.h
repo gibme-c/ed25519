@@ -25,11 +25,39 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_sub.h
+ * @brief Scalar subtraction modulo the group order l.
+ *
+ * Subtracts one 32-byte scalar from another modulo l. If the subtraction
+ * underflows, the result wraps around by adding l (so you always get a value
+ * in [0, l-1]). Same platform split as sc_add.
+ */
+
 #ifndef ED25519_SC_SUB_H
 #define ED25519_SC_SUB_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_sub(unsigned char *s, const unsigned char *a, const unsigned char *b);
+/**
+ * @brief Subtracts two scalars modulo l: s = a - b mod l.
+ *
+ * @param s Output 32-byte scalar.
+ * @param a First input 32-byte scalar.
+ * @param b Second input 32-byte scalar.
+ */
+#if ED25519_PLATFORM_64BIT
+void sc_sub_x64(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_sub(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_sub_x64(s, a, b);
+}
+#else
+void sc_sub_portable(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_sub(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_sub_portable(s, a, b);
+}
+#endif
 
 #endif // ED25519_SC_SUB_H

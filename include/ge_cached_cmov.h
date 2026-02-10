@@ -25,11 +25,37 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_cached_cmov.h
+ * @brief Constant-time conditional move for cached points.
+ *
+ * Applies fe_cmov to each field element of a ge_cached point. Used during
+ * constant-time scalar multiplication to select a table entry without
+ * revealing which index was chosen via timing or cache side channels.
+ */
+
 #ifndef ED25519_GE_CACHED_CMOV_H
 #define ED25519_GE_CACHED_CMOV_H
 
 #include "ge.h"
 
-void ge_cached_cmov(ge_cached *t, const ge_cached *u, unsigned char b);
+/**
+ * @brief Conditionally replaces t with u in constant time.
+ *
+ * If b is nonzero, sets t = u. If b is zero, t is unchanged.
+ *
+ * @param t Point to conditionally overwrite.
+ * @param u Source point.
+ * @param b Condition flag (0 or 1).
+ */
+#include "fe_cmov.h"
+
+static inline void ge_cached_cmov(ge_cached *t, const ge_cached *u, unsigned char b)
+{
+    fe_cmov(t->YplusX, u->YplusX, b);
+    fe_cmov(t->YminusX, u->YminusX, b);
+    fe_cmov(t->Z, u->Z, b);
+    fe_cmov(t->T2d, u->T2d, b);
+}
 
 #endif // ED25519_GE_CACHED_CMOV_H

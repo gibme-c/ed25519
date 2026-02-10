@@ -25,11 +25,43 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_divpowm1.h
+ * @brief Compute u * v^((p+3)/8) for square root extraction.
+ *
+ * Efficiently computes something like sqrt(u/v) without actually dividing.
+ * The formula r = u * v^3 * (u * v^7)^((p-5)/8) gives a candidate square
+ * root of u/v using only multiplications and one big exponentiation. This
+ * is used by point decompression and the Elligator hash-to-curve map,
+ * which both need to solve x^2 = (something) for x.
+ */
+
 #ifndef ED25519_FE_DIVPOWM1_H
 #define ED25519_FE_DIVPOWM1_H
 
 #include "fe.h"
 
-void fe_divpowm1(fe r, const fe u, const fe v);
+/**
+ * @brief Computes r = u * v^3 * (u * v^7)^((p-5)/8).
+ *
+ * Equivalent to u/v^((p+3)/8), used for Elligator and point decompression.
+ *
+ * @param r Output field element.
+ * @param u Numerator field element.
+ * @param v Denominator field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_divpowm1_x64(fe r, const fe u, const fe v);
+static inline void fe_divpowm1(fe r, const fe u, const fe v)
+{
+    fe_divpowm1_x64(r, u, v);
+}
+#else
+void fe_divpowm1_portable(fe r, const fe u, const fe v);
+static inline void fe_divpowm1(fe r, const fe u, const fe v)
+{
+    fe_divpowm1_portable(r, u, v);
+}
+#endif
 
 #endif // ED25519_FE_DIVPOWM1_H

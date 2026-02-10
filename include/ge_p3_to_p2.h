@@ -25,11 +25,32 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p3_to_p2.h
+ * @brief Convert an extended point to projective coordinates.
+ *
+ * Simply drops the T coordinate from a ge_p3, giving a ge_p2. Free --
+ * just copies X, Y, Z. Useful before doubling, which doesn't need T.
+ */
+
 #ifndef ED25519_GE_P3_TO_P2_H
 #define ED25519_GE_P3_TO_P2_H
 
 #include "ge.h"
 
-void ge_p3_to_p2(ge_p2 *r, const ge_p3 *p);
+/**
+ * @brief Converts ge_p3 (extended) to ge_p2 (projective) by dropping T.
+ *
+ * @param r Output projective point.
+ * @param p Input extended point.
+ */
+#include "fe_copy.h"
+
+static inline void ge_p3_to_p2(ge_p2 *r, const ge_p3 *p)
+{
+    fe_copy(r->X, p->X);
+    fe_copy(r->Y, p->Y);
+    fe_copy(r->Z, p->Z);
+}
 
 #endif // ED25519_GE_P3_TO_P2_H

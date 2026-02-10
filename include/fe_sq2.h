@@ -25,11 +25,38 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_sq2.h
+ * @brief Double field element squaring over GF(2^255 - 19).
+ *
+ * Computes 2*f^2 in a single pass. This shows up in the point doubling
+ * formulas, where a "2*a^2" term is needed. Fusing the doubling with the
+ * squaring avoids a separate addition pass.
+ */
+
 #ifndef ED25519_FE_SQ2_H
 #define ED25519_FE_SQ2_H
 
 #include "fe.h"
 
-void fe_sq2(fe h, const fe f);
+/**
+ * @brief Computes h = 2 * f^2.
+ *
+ * @param h Output field element.
+ * @param f Input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_sq2_x64(fe h, const fe f);
+static inline void fe_sq2(fe h, const fe f)
+{
+    fe_sq2_x64(h, f);
+}
+#else
+void fe_sq2_portable(fe h, const fe f);
+static inline void fe_sq2(fe h, const fe f)
+{
+    fe_sq2_portable(h, f);
+}
+#endif
 
 #endif // ED25519_FE_SQ2_H

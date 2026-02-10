@@ -25,11 +25,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_muladd.h
+ * @brief Scalar multiply-add modulo the group order l.
+ *
+ * Computes s = a*b + c mod l in one shot. This is the core of Ed25519
+ * signing: the signature component s = r + H(R,A,M)*a mod l, where r is the
+ * nonce scalar, a is the private key, and H(R,A,M) is the hash challenge.
+ * Fusing the multiply and add avoids a separate reduction step on the
+ * intermediate product.
+ */
+
 #ifndef ED25519_SC_MULADD_H
 #define ED25519_SC_MULADD_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_muladd(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+/**
+ * @brief Computes s = (a * b + c) mod l.
+ *
+ * @param s Output 32-byte scalar.
+ * @param a First multiplicand (32-byte scalar).
+ * @param b Second multiplicand (32-byte scalar).
+ * @param c Addend (32-byte scalar).
+ */
+#if ED25519_PLATFORM_64BIT
+void sc_muladd_x64(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+static inline void sc_muladd(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c)
+{
+    sc_muladd_x64(s, a, b, c);
+}
+#else
+void sc_muladd_portable(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c);
+static inline void sc_muladd(unsigned char *s, const unsigned char *a, const unsigned char *b, const unsigned char *c)
+{
+    sc_muladd_portable(s, a, b, c);
+}
+#endif
 
 #endif // ED25519_SC_MULADD_H

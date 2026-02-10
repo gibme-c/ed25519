@@ -25,11 +25,40 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_sq.h
+ * @brief Field element squaring over GF(2^255 - 19).
+ *
+ * Squaring is a specialized multiplication where both inputs are the same.
+ * This lets us nearly halve the number of limb-pair multiplications by
+ * doubling the cross-terms (since a[i]*a[j] appears twice). It's worth
+ * having a dedicated squaring function because exponentiation chains (used
+ * for inversion and square roots) do hundreds of squarings in a row.
+ */
+
 #ifndef ED25519_FE_SQ_H
 #define ED25519_FE_SQ_H
 
 #include "fe.h"
 
-void fe_sq(fe h, const fe f);
+/**
+ * @brief Squares a field element: h = f^2.
+ *
+ * @param h Output field element.
+ * @param f Input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_sq_x64(fe h, const fe f);
+static inline void fe_sq(fe h, const fe f)
+{
+    fe_sq_x64(h, f);
+}
+#else
+void fe_sq_portable(fe h, const fe f);
+static inline void fe_sq(fe h, const fe f)
+{
+    fe_sq_portable(h, f);
+}
+#endif
 
 #endif // ED25519_FE_SQ_H

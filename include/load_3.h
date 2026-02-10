@@ -25,11 +25,29 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file load_3.h
+ * @brief Load 3 bytes as a little-endian uint64_t.
+ */
+
 #ifndef ED25519_LOAD_3_H
 #define ED25519_LOAD_3_H
 
 #include <cstdint>
 
-uint64_t load_3(const unsigned char *in);
+/**
+ * @brief Loads 3 bytes from memory in little-endian order.
+ *
+ * @param in Pointer to at least 3 bytes.
+ * @return The 3-byte value as a uint64_t.
+ */
+static inline uint64_t load_3(const unsigned char *in)
+{
+    uint64_t result;
+    result = (uint64_t)in[0];
+    result |= ((uint64_t)in[1]) << 8;
+    result |= ((uint64_t)in[2]) << 16;
+    return result;
+}
 
 #endif // ED25519_LOAD_3_H

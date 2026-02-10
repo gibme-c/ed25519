@@ -25,11 +25,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_isnegative.h
+ * @brief Check if a field element is negative.
+ *
+ * In GF(p) there's no natural notion of "positive" or "negative," so
+ * Ed25519 defines a convention: a field element is "negative" if its
+ * canonical byte encoding is odd (least significant bit = 1). This is used
+ * in point serialization to encode the sign of the x coordinate.
+ */
+
 #ifndef ED25519_FE_ISNEGATIVE_H
 #define ED25519_FE_ISNEGATIVE_H
 
 #include "fe.h"
 
-int fe_isnegative(const fe f);
+/**
+ * @brief Returns 1 if the field element is negative (odd after reduction).
+ *
+ * A field element is considered negative if its least significant bit is 1
+ * after full reduction.
+ *
+ * @param f Input field element.
+ * @return 1 if negative, 0 otherwise.
+ */
+#if ED25519_PLATFORM_64BIT
+int fe_isnegative_x64(const fe f);
+static inline int fe_isnegative(const fe f)
+{
+    return fe_isnegative_x64(f);
+}
+#else
+int fe_isnegative_portable(const fe f);
+static inline int fe_isnegative(const fe f)
+{
+    return fe_isnegative_portable(f);
+}
+#endif
 
 #endif // ED25519_FE_ISNEGATIVE_H

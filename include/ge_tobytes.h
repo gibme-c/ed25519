@@ -25,11 +25,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_tobytes.h
+ * @brief Serialize a projective point to bytes.
+ *
+ * Compresses an elliptic curve point into 32 bytes using the standard
+ * Ed25519 encoding: store the y coordinate in little-endian form and pack
+ * the sign of x (its "negativity" -- see fe_isnegative) into the top bit
+ * of the last byte. This works because given y and the sign of x, you can
+ * always recover x from the curve equation.
+ */
+
 #ifndef ED25519_GE_TOBYTES_H
 #define ED25519_GE_TOBYTES_H
 
 #include "ge.h"
 
-void ge_tobytes(unsigned char *s, const ge_p2 *h);
+/**
+ * @brief Serializes a ge_p2 point to 32-byte compressed Edwards form.
+ *
+ * Computes the affine y-coordinate and encodes the sign of x in the high bit.
+ *
+ * @param s Output byte array (32 bytes).
+ * @param h Input projective point.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_tobytes_x64(unsigned char *s, const ge_p2 *h);
+static inline void ge_tobytes(unsigned char *s, const ge_p2 *h)
+{
+    ge_tobytes_x64(s, h);
+}
+#else
+void ge_tobytes_portable(unsigned char *s, const ge_p2 *h);
+static inline void ge_tobytes(unsigned char *s, const ge_p2 *h)
+{
+    ge_tobytes_portable(s, h);
+}
+#endif
 
 #endif // ED25519_GE_TOBYTES_H

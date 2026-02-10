@@ -25,11 +25,36 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p1p1_to_p3.h
+ * @brief Convert a completed point to extended coordinates.
+ *
+ * Same as ge_p1p1_to_p2 but also computes the extended T coordinate
+ * (T = X*Y/Z) for the output. Costs 4 field multiplications instead of 3.
+ * Use this when the result will be fed into an addition (which needs T),
+ * and use ge_p1p1_to_p2 when you're about to double (which doesn't).
+ */
+
 #ifndef ED25519_GE_P1P1_TO_P3_H
 #define ED25519_GE_P1P1_TO_P3_H
 
+#include "fe_mul.h"
 #include "ge.h"
 
-void ge_p1p1_to_p3(ge_p3 *r, const ge_p1p1 *p);
+/**
+ * @brief Converts a ge_p1p1 (completed) point to ge_p3 (extended).
+ *
+ * Computes X, Y, Z as in p1p1_to_p2, plus T = X * Y.
+ *
+ * @param r Output extended point.
+ * @param p Input completed point.
+ */
+static inline void ge_p1p1_to_p3(ge_p3 *r, const ge_p1p1 *p)
+{
+    fe_mul(r->X, p->X, p->T);
+    fe_mul(r->Y, p->Y, p->Z);
+    fe_mul(r->Z, p->Z, p->T);
+    fe_mul(r->T, p->X, p->Y);
+}
 
 #endif // ED25519_GE_P1P1_TO_P3_H

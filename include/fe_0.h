@@ -25,11 +25,26 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_0.h
+ * @brief Set a field element to zero.
+ */
+
 #ifndef ED25519_FE_0_H
 #define ED25519_FE_0_H
 
 #include "fe.h"
 
-void fe_0(fe h);
+#include <cstring>
+
+/**
+ * @brief Sets the field element h to zero.
+ *
+ * @param h Output field element.
+ */
+static inline void fe_0(fe h)
+{
+    std::memset(h, 0, sizeof(fe));
+}
 
 #endif // ED25519_FE_0_H

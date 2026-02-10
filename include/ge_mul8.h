@@ -25,11 +25,40 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_mul8.h
+ * @brief Multiply a point by the cofactor 8.
+ *
+ * Computes 8*A by doing 3 successive point doublings. The Ed25519 curve has
+ * cofactor 8, meaning the full curve group has order 8*l. Multiplying by 8
+ * "clears" the cofactor, projecting any curve point into the prime-order
+ * subgroup. This is used in some protocol constructions (like cofactored
+ * Diffie-Hellman) to avoid small-subgroup attacks.
+ */
+
 #ifndef ED25519_GE_MUL8_H
 #define ED25519_GE_MUL8_H
 
 #include "ge.h"
+#include "ge_p1p1_to_p2.h"
+#include "ge_p2_dbl.h"
 
-void ge_mul8(ge_p1p1 *r, const ge_p2 *t);
+/**
+ * @brief Multiplies a projective point by the cofactor 8: r = 8 * s.
+ *
+ * Performs three consecutive doublings.
+ *
+ * @param r Output completed point.
+ * @param s Input projective point.
+ */
+static inline void ge_mul8(ge_p1p1 *r, const ge_p2 *t)
+{
+    ge_p2 u;
+    ge_p2_dbl(r, t);
+    ge_p1p1_to_p2(&u, r);
+    ge_p2_dbl(r, &u);
+    ge_p1p1_to_p2(&u, r);
+    ge_p2_dbl(r, &u);
+}
 
 #endif // ED25519_GE_MUL8_H

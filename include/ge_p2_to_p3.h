@@ -25,11 +25,39 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p2_to_p3.h
+ * @brief Convert a projective point to extended coordinates.
+ *
+ * Recovers the T coordinate that ge_p2 doesn't carry. This requires
+ * computing T = X*Y/Z, which costs one field multiplication and one
+ * inversion -- expensive. Only used when you have a p2 point and need to
+ * pass it to an operation that requires the extended form.
+ */
+
 #ifndef ED25519_GE_P2_TO_P3_H
 #define ED25519_GE_P2_TO_P3_H
 
 #include "ge.h"
 
-int ge_p2_to_p3(ge_p3 *r, const ge_p2 *p);
+/**
+ * @brief Converts ge_p2 (projective) to ge_p3 (extended), recomputing T.
+ *
+ * @param r Output extended point.
+ * @param p Input projective point.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_p2_to_p3_x64(ge_p3 *r, const ge_p2 *p);
+static inline void ge_p2_to_p3(ge_p3 *r, const ge_p2 *p)
+{
+    ge_p2_to_p3_x64(r, p);
+}
+#else
+void ge_p2_to_p3_portable(ge_p3 *r, const ge_p2 *p);
+static inline void ge_p2_to_p3(ge_p3 *r, const ge_p2 *p)
+{
+    ge_p2_to_p3_portable(r, p);
+}
+#endif
 
 #endif // ED25519_GE_P2_TO_P3_H

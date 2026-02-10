@@ -25,11 +25,30 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_cached_0.h
+ * @brief Set ge_cached to the neutral element.
+ */
+
 #ifndef ED25519_GE_CACHED_0_H
 #define ED25519_GE_CACHED_0_H
 
 #include "ge.h"
 
-void ge_cached_0(ge_cached *r);
+/**
+ * @brief Sets r to the neutral cached element (1, 1, 1, 0).
+ *
+ * @param r Output cached point.
+ */
+#include "fe_0.h"
+#include "fe_1.h"
+
+static inline void ge_cached_0(ge_cached *r)
+{
+    fe_1(r->YplusX);
+    fe_1(r->YminusX);
+    fe_1(r->Z);
+    fe_0(r->T2d);
+}
 
 #endif // ED25519_GE_CACHED_0_H

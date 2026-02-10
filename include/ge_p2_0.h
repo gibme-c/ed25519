@@ -25,11 +25,29 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p2_0.h
+ * @brief Set ge_p2 to the neutral element.
+ */
+
 #ifndef ED25519_GE_P2_0_H
 #define ED25519_GE_P2_0_H
 
 #include "ge.h"
 
-void ge_p2_0(ge_p2 *h);
+/**
+ * @brief Sets r to the neutral element (0:1:1) in projective coordinates.
+ *
+ * @param h Output point.
+ */
+#include "fe_0.h"
+#include "fe_1.h"
+
+static inline void ge_p2_0(ge_p2 *h)
+{
+    fe_0(h->X);
+    fe_1(h->Y);
+    fe_1(h->Z);
+}
 
 #endif // ED25519_GE_P2_0_H

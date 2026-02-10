@@ -9,95 +9,94 @@ on:
     - cron: '30 3 * * 0'
 
 jobs:
-  cpp_build:
+  build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            CC: gcc-11
-            CXX: g++-11
-            CMAKE_CMD: cmake ..
-            NAME: gcc-11
+          # ── Linux gcc-11 ──────────────────────────────────────────
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-full,     cmake_flags: "" }
 
-          - os: ubuntu-latest
-            CC: gcc-12
-            CXX: g++-12
-            CMAKE_CMD: cmake ..
-            NAME: gcc-12
+          # ── Linux gcc-12 ──────────────────────────────────────────
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-full,     cmake_flags: "" }
 
-          - os: ubuntu-latest
-            CC: clang-14
-            CXX: clang++-14
-            CMAKE_CMD: cmake ..
-            NAME: clang-14
+          # ── Linux clang-14 ────────────────────────────────────────
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-full,     cmake_flags: "" }
 
-          - os: ubuntu-latest
-            CC: clang-15
-            CXX: clang++-15
-            CMAKE_CMD: cmake ..
-            NAME: clang-15
+          # ── Linux clang-15 ────────────────────────────────────────
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-full,     cmake_flags: "" }
 
-          - os: macos-latest
-            CC: /opt/homebrew/opt/llvm/bin/clang
-            CXX: /opt/homebrew/opt/llvm/bin/clang++
-            CMAKE_CMD: cmake ..
-            NAME: clang
+          # ── macOS Homebrew clang (ARM64 — no x86 SIMD configs) ───
+          - { os: macos-latest, cc: /opt/homebrew/opt/llvm/bin/clang, cxx: /opt/homebrew/opt/llvm/bin/clang++, name: clang, config: portable, cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: macos-latest, cc: /opt/homebrew/opt/llvm/bin/clang, cxx: /opt/homebrew/opt/llvm/bin/clang++, name: clang, config: arm64,     cmake_flags: "" }
 
-          - os: macos-latest
-            CMAKE_CMD: cmake ..
-            NAME: AppleClang
+          # ── macOS AppleClang (ARM64 — no x86 SIMD configs) ───────
+          - { os: macos-latest, name: AppleClang, config: portable, cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: macos-latest, name: AppleClang, config: arm64,     cmake_flags: "" }
 
-          - os: windows-latest
-            CMAKE_CMD: cmake ..
-            NAME: msvc
+          # ── Windows MSVC ──────────────────────────────────────────
+          - { os: windows-latest, name: msvc, config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: windows-latest, name: msvc, config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: msvc, config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: msvc, config: x64-full,     cmake_flags: "" }
 
-          - os: windows-latest
-            CMAKE_CMD: cmake .. -G "Unix Makefiles"
-            NAME: mingw-gcc
+          # ── Windows MinGW GCC ─────────────────────────────────────
+          - { os: windows-latest, name: mingw-gcc, config: portable,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DFORCE_PORTABLE=ON" }
+          - { os: windows-latest, name: mingw-gcc, config: x64-baseline, cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: mingw-gcc, config: x64-avx2,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: mingw-gcc, config: x64-full,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++" }
 
-    name: ${{ matrix.os }}-${{ matrix.NAME }} - C++ Test
-    env:
-      MSBUILD_PATH: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/MSBuild/Current/Bin"
+    name: ${{ matrix.os }} / ${{ matrix.name }} / ${{ matrix.config }}
     steps:
-      - uses: actions/checkout@v1
-      - name: Checkout Submodules
-        run: |
-          git submodule update --init --recursive
-      - name: Create Build Directory
-        run: mkdir build
+      - uses: actions/checkout@v4
 
-      - name: Install Dependencies (Linux)
+      - name: Install Compiler (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt update
-          sudo apt install -y ${{ matrix.CC }}
-          if [[ "${{ matrix.CXX }}" != *"clang"* ]]; then sudo apt install -y ${{ matrix.CXX }}; fi
-      - name: Install Dependencies (OSX)
-        if: matrix.os == 'macos-latest' && matrix.name != 'AppleClang'
-        run: |
-          brew cask uninstall --force oclint || true
-          brew install llvm || brew upgrade llvm
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.cc }}
+          if [[ "${{ matrix.cxx }}" != *"clang"* ]]; then sudo apt-get install -y ${{ matrix.cxx }}; fi
 
-      - name: Execute CMake Process
+      - name: Install LLVM (macOS)
+        if: matrix.os == 'macos-latest' && matrix.name == 'clang'
+        run: brew install llvm || brew upgrade llvm
+
+      - name: Configure
         env:
-          CC: ${{ matrix.CC }}
-          CXX: ${{ matrix.CXX }}
-        run: |
-          cd build
-          ${{ matrix.CMAKE_CMD }} -DBUILD_BENCHMARK=1
-      - name: Build Project
-        run: |
-          cd build
-          cmake --build . -j
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON ${{ matrix.cmake_flags }}
 
-      - name: Run Benchmarks (Linux & OSX)
-        if: matrix.os != 'windows-latest' || matrix.name == 'mingw-gcc'
+      - name: Build
+        run: cmake --build build --config Release -j
+
+      - name: Run Tests
         run: |
-          cd build
-          ./benchmark
-      - name: Run Benchmarks (Windows)
-        if: matrix.os == 'windows-latest' && matrix.name == 'msvc'
+          if [ "${{ matrix.os }}" = "windows-latest" ] && [ "${{ matrix.name }}" = "msvc" ]; then
+            ./build/Release/ed25519-tests.exe
+          else
+            ./build/ed25519-tests
+          fi
+        shell: bash
+
+      - name: Run Benchmark
         run: |
-          cd build/Debug
-          ./benchmark.exe
+          if [ "${{ matrix.os }}" = "windows-latest" ] && [ "${{ matrix.name }}" = "msvc" ]; then
+            ./build/Release/ed25519-benchmark.exe
+          else
+            ./build/ed25519-benchmark
+          fi
+        shell: bash

@@ -25,11 +25,43 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_isnonzero.h
+ * @brief Check if a scalar is nonzero.
+ *
+ * ORs all 32 bytes together and checks if the result is nonzero.
+ * Constant-time: always reads every byte regardless of the value.
+ */
+
 #ifndef ED25519_SC_ISNONZERO_H
 #define ED25519_SC_ISNONZERO_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-int sc_isnonzero(const unsigned char *s);
+#include <cstdint>
+#include <cstring>
+
+/**
+ * @brief Checks if a 32-byte scalar is nonzero.
+ *
+ * @param s Input 32-byte scalar.
+ * @return Nonzero value if s != 0, zero if s == 0.
+ */
+static inline int sc_isnonzero(const unsigned char *s)
+{
+#if ED25519_PLATFORM_64BIT
+    uint64_t v[4];
+    std::memcpy(v, s, 32);
+    uint64_t d = v[0] | v[1] | v[2] | v[3];
+    return -(int)((d | (~d + 1)) >> 63);
+#else
+    unsigned int d = 0;
+    for (int i = 0; i < 32; i++)
+    {
+        d |= s[i];
+    }
+    return (1 & ((d - 1) >> 8)) - 1;
+#endif
+}
 
 #endif // ED25519_SC_ISNONZERO_H

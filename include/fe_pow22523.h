@@ -25,11 +25,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_pow22523.h
+ * @brief Compute z^((p-5)/8) over GF(2^255 - 19).
+ *
+ * This is the core of square root computation in our field. Since
+ * p mod 8 = 5, the square root of a quadratic residue u can be found as
+ * u^((p+3)/8), which factors into u * u^((p-5)/8). The exponent
+ * (p-5)/8 = 2^252 - 3, hence the name. Used by point decompression
+ * (recovering x from the encoded y coordinate) and the Elligator map.
+ */
+
 #ifndef ED25519_FE_POW22523_H
 #define ED25519_FE_POW22523_H
 
 #include "fe.h"
 
-void fe_pow22523(fe out, const fe z);
+/**
+ * @brief Computes out = z^((2^252 - 3)), i.e., z^((p-5)/8).
+ *
+ * Used in square root computation for point decompression.
+ *
+ * @param out Output field element.
+ * @param z Input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_pow22523_x64(fe out, const fe z);
+static inline void fe_pow22523(fe out, const fe z)
+{
+    fe_pow22523_x64(out, z);
+}
+#else
+void fe_pow22523_portable(fe out, const fe z);
+static inline void fe_pow22523(fe out, const fe z)
+{
+    fe_pow22523_portable(out, z);
+}
+#endif
 
 #endif // ED25519_FE_POW22523_H

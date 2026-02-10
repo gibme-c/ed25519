@@ -25,11 +25,72 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_sub.h
+ * @brief Point subtraction on the Ed25519 curve.
+ *
+ * Subtracts a cached point from an extended point: r = p - q. Internally
+ * this is nearly identical to addition, but with the Y+X and Y-X fields of
+ * the cached point swapped and the 2dT term negated. Same cost as addition.
+ */
+
 #ifndef ED25519_GE_SUB_H
 #define ED25519_GE_SUB_H
 
+#include "fe_add.h"
+#include "fe_sub.h"
 #include "ge.h"
 
-void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+/**
+ * @brief Subtracts a cached point from an extended point: r = p - q.
+ *
+ * @param r Output completed point.
+ * @param p Input extended point.
+ * @param q Input cached point.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_sub_x64(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q);
+
+#if defined(_MSC_VER)
+static inline void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q)
+{
+    ge_sub_x64(r, p, q);
+}
+#else
+#include "x64/fe51_chain.h"
+static inline void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q)
+{
+    fe t0;
+    fe_add(r->X, p->Y, p->X);
+    fe_sub(r->Y, p->Y, p->X);
+    fe51_chain_mul(r->Z, r->X, q->YminusX);
+    fe51_chain_mul(r->Y, r->Y, q->YplusX);
+    fe51_chain_mul(r->T, q->T2d, p->T);
+    fe51_chain_mul(r->X, p->Z, q->Z);
+    fe_add(t0, r->X, r->X);
+    fe_sub(r->X, r->Z, r->Y);
+    fe_add(r->Y, r->Z, r->Y);
+    fe_sub(r->Z, t0, r->T);
+    fe_add(r->T, t0, r->T);
+}
+#endif
+#else
+#include "portable/fe25_chain.h"
+static inline void ge_sub(ge_p1p1 *r, const ge_p3 *p, const ge_cached *q)
+{
+    fe t0;
+    fe_add(r->X, p->Y, p->X);
+    fe_sub(r->Y, p->Y, p->X);
+    fe25_chain_mul(r->Z, r->X, q->YminusX);
+    fe25_chain_mul(r->Y, r->Y, q->YplusX);
+    fe25_chain_mul(r->T, q->T2d, p->T);
+    fe25_chain_mul(r->X, p->Z, q->Z);
+    fe_add(t0, r->X, r->X);
+    fe_sub(r->X, r->Z, r->Y);
+    fe_add(r->Y, r->Z, r->Y);
+    fe_sub(r->Z, t0, r->T);
+    fe_add(r->T, t0, r->T);
+}
+#endif
 
 #endif // ED25519_GE_SUB_H

@@ -148,12 +148,10 @@ fabric.properties
 
 # build directories
 build/
-build-gcc-actual/
-build-gcc/
-build-clang/
-build-msvc
+build-*/
 prebuilds/
 dist/
+optimizations/
 
 # CMake
 cmake-build*

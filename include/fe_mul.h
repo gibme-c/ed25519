@@ -25,11 +25,43 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_mul.h
+ * @brief Field element multiplication over GF(2^255 - 19).
+ *
+ * This is the performance-critical operation -- almost everything in Ed25519
+ * bottlenecks on field multiplications. The algorithm multiplies all pairs of
+ * limbs (schoolbook style), accumulating into 128-bit intermediates, then
+ * reduces modulo p. The key trick: since p = 2^255 - 19, any overflow past
+ * 2^255 wraps around as multiplication by 19, keeping the result small.
+ */
+
 #ifndef ED25519_FE_MUL_H
 #define ED25519_FE_MUL_H
 
 #include "fe.h"
 
-void fe_mul(fe h, const fe f, const fe g);
+/**
+ * @brief Multiplies two field elements: h = f * g.
+ *
+ * Can overlap h with f or g.
+ *
+ * @param h Output field element.
+ * @param f First input field element.
+ * @param g Second input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_mul_x64(fe h, const fe f, const fe g);
+static inline void fe_mul(fe h, const fe f, const fe g)
+{
+    fe_mul_x64(h, f, g);
+}
+#else
+void fe_mul_portable(fe h, const fe f, const fe g);
+static inline void fe_mul(fe h, const fe f, const fe g)
+{
+    fe_mul_portable(h, f, g);
+}
+#endif
 
 #endif // ED25519_FE_MUL_H

@@ -25,11 +25,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_tobytes.h
+ * @brief Serialize a field element to bytes.
+ *
+ * Converts a field element to 32 bytes in little-endian order. This first
+ * performs a full canonical reduction modulo p (ensuring the output is in
+ * [0, p-1]) since the internal limb representation can hold values slightly
+ * larger than p. The canonical form is essential for consistent encodings
+ * and comparisons.
+ */
+
 #ifndef ED25519_FE_TOBYTES_H
 #define ED25519_FE_TOBYTES_H
 
 #include "fe.h"
 
-void fe_tobytes(unsigned char *s, const fe h);
+/**
+ * @brief Serializes a field element to 32 bytes in little-endian order.
+ *
+ * Fully reduces the field element modulo 2^255 - 19 before serializing.
+ *
+ * @param s Output byte array (32 bytes).
+ * @param h Input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_tobytes_x64(unsigned char *s, const fe h);
+static inline void fe_tobytes(unsigned char *s, const fe h)
+{
+    fe_tobytes_x64(s, h);
+}
+#else
+void fe_tobytes_portable(unsigned char *s, const fe h);
+static inline void fe_tobytes(unsigned char *s, const fe h)
+{
+    fe_tobytes_portable(s, h);
+}
+#endif
 
 #endif // ED25519_FE_TOBYTES_H

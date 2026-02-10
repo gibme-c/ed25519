@@ -25,11 +25,29 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_precomp_0.h
+ * @brief Set ge_precomp to the neutral element.
+ */
+
 #ifndef ED25519_GE_PRECOMP_0_H
 #define ED25519_GE_PRECOMP_0_H
 
 #include "ge.h"
 
-void ge_precomp_0(ge_precomp *h);
+/**
+ * @brief Sets h to the neutral precomputed element (1, 1, 0).
+ *
+ * @param h Output precomputed point.
+ */
+#include "fe_0.h"
+#include "fe_1.h"
+
+static inline void ge_precomp_0(ge_precomp *h)
+{
+    fe_1(h->yplusx);
+    fe_1(h->yminusx);
+    fe_0(h->xy2d);
+}
 
 #endif // ED25519_GE_PRECOMP_0_H

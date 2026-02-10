@@ -25,6 +25,20 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc.h
+ * @brief Scalar utility includes for Ed25519 scalar operations.
+ *
+ * Scalars are 256-bit integers modulo the group order
+ * l = 2^252 + 27742317777372353535851937790883648493. That's the number of
+ * points in the prime-order subgroup of the Ed25519 curve. Private keys,
+ * nonces, and signature components are all scalars.
+ *
+ * Scalars are stored as 32 bytes in little-endian order. This header pulls
+ * in the byte-loading helpers (load_3, load_4) used internally by the
+ * scalar arithmetic functions.
+ */
+
 #ifndef ED25519_SC_H
 #define ED25519_SC_H
 

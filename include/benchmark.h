@@ -25,15 +25,24 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file benchmark.h
+ * @brief Benchmark utilities for measuring Ed25519 operation performance.
+ *
+ * Provides timing macros and helper functions for benchmarking field element,
+ * group element, and scalar operations. Results are displayed in a formatted table.
+ */
+
 #ifndef ED25519_BENCHMARK_H
 #define ED25519_BENCHMARK_H
 
+/** @brief Default number of iterations for performance benchmarks. */
 #ifndef BENCHMARK_PERFORMANCE_ITERATIONS
-#define BENCHMARK_PERFORMANCE_ITERATIONS 10000
+#define BENCHMARK_PERFORMANCE_ITERATIONS 50000
 #endif
 
 #ifndef BENCHMARK_PERFORMANCE_ITERATIONS_LONG_MULTIPLIER
-#define BENCHMARK_PERFORMANCE_ITERATIONS_LONG_MULTIPLIER 60
+#define BENCHMARK_PERFORMANCE_ITERATIONS_LONG_MULTIPLIER 10
 #endif
 
 #ifndef BENCHMARK_PREFIX_WIDTH
@@ -41,11 +50,26 @@ For more information, please refer to <http://unlicense.org/>
 #endif
 
 #ifndef BENCHMARK_COLUMN_WIDTH
-#define BENCHMARK_COLUMN_WIDTH 16
+#define BENCHMARK_COLUMN_WIDTH 14
 #endif
 
 #ifndef BENCHMARK_PRECISION
-#define BENCHMARK_PRECISION 5
+#define BENCHMARK_PRECISION 3
+#endif
+
+/** @brief Number of warmup iterations before measurement begins. */
+#ifndef BENCHMARK_WARMUP_ITERATIONS
+#define BENCHMARK_WARMUP_ITERATIONS 10000
+#endif
+
+/** @brief Number of iterations per timed batch. */
+#ifndef BENCHMARK_BATCH_SIZE
+#define BENCHMARK_BATCH_SIZE 1000
+#endif
+
+/** @brief Target wall-clock time per measurement batch in microseconds. */
+#ifndef BENCHMARK_TARGET_BATCH_US
+#define BENCHMARK_TARGET_BATCH_US 10000.0
 #endif
 
 #define BENCHMARK_PERFORMANCE_ITERATIONS_LONG \
@@ -53,12 +77,109 @@ For more information, please refer to <http://unlicense.org/>
 
 #define NOW() std::chrono::high_resolution_clock::now()
 #define NOW_DIFF(b) \
-    static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(NOW() - b).count()) / 1'000'000.0
+    static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(NOW() - b).count()) / 1'000.0
 
+#include <algorithm>
 #include <cfloat>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <vector>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#elif defined(__linux__)
+#include <pthread.h>
+#include <sched.h>
+#include <unistd.h>
+#endif
+
+/**
+ * Saved process/thread state for restoring after benchmarks.
+ */
+struct benchmark_state
+{
+#ifdef _WIN32
+    DWORD original_priority_class;
+    int original_thread_priority;
+    DWORD_PTR original_affinity_mask;
+#endif
+};
+
+/**
+ * Elevates process priority and pins to a single CPU core to reduce scheduling noise.
+ *
+ * @return The original state for later restoration via benchmark_teardown().
+ */
+static inline benchmark_state benchmark_setup()
+{
+    benchmark_state state = {};
+
+#ifdef _WIN32
+    const auto process = GetCurrentProcess();
+    const auto thread = GetCurrentThread();
+
+    state.original_priority_class = GetPriorityClass(process);
+    state.original_thread_priority = GetThreadPriority(thread);
+    state.original_affinity_mask = SetThreadAffinityMask(thread, 1);
+
+    SetPriorityClass(process, HIGH_PRIORITY_CLASS);
+    SetThreadPriority(thread, THREAD_PRIORITY_HIGHEST);
+#elif defined(__linux__)
+    if (nice(-20) == -1)
+    {
+    }
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+#endif
+
+    return state;
+}
+
+/**
+ * Restores process/thread state saved by benchmark_setup().
+ *
+ * @param state The state returned by benchmark_setup().
+ */
+static inline void benchmark_teardown(const benchmark_state &state)
+{
+#ifdef _WIN32
+    const auto process = GetCurrentProcess();
+    const auto thread = GetCurrentThread();
+
+    SetPriorityClass(process, state.original_priority_class);
+    SetThreadPriority(thread, state.original_thread_priority);
+
+    if (state.original_affinity_mask != 0)
+    {
+        SetThreadAffinityMask(thread, state.original_affinity_mask);
+    }
+#else
+    (void)state;
+#endif
+}
+
+/**
+ * Prevents the compiler from optimizing away a computed value.
+ *
+ * @tparam T The type of the value.
+ * @param value The value to keep alive.
+ */
+template<typename T> static inline void benchmark_do_not_optimize(const T &value)
+{
+#if defined(_MSC_VER)
+    const volatile auto *sink = &value;
+    (void)sink;
+#else
+    asm volatile("" : : "g"(value) : "memory");
+#endif
+}
 
 /**
  * Prints the benchmark header for a "table" like setup
@@ -70,12 +191,16 @@ static inline void
     benchmark_header(int8_t prefix_width = BENCHMARK_PREFIX_WIDTH, int8_t column_width = BENCHMARK_COLUMN_WIDTH)
 {
     std::cout << std::setw(prefix_width) << "BENCHMARK TESTS"
-              << ": " << std::setw(10) << " " << std::setw(column_width) << "Average" << std::setw(column_width)
-              << "Minimum" << std::setw(column_width) << "Maximum" << std::setw(column_width) << "Total" << std::endl;
+              << ": " << std::setw(10) << " " << std::setw(column_width) << "Median" << std::setw(column_width)
+              << "Minimum" << std::setw(column_width) << "Maximum" << std::setw(column_width + 8) << "Total"
+              << std::endl;
 }
 
 /**
- * Performs a benchmark of the given function for the number of iterations specified
+ * Performs a benchmark of the given function for the number of iterations specified.
+ *
+ * Uses warmup iterations to stabilize CPU frequency and caches, then measures
+ * in batches to amortize timer overhead. Reports median, minimum, maximum, and total.
  *
  * @tparam T
  * @param function
@@ -104,41 +229,108 @@ void benchmark(
         std::cout << std::setw(prefix_width) << functionName.substr(0, prefix_width) << ": " << std::flush;
     }
 
-    const auto tenth = (iterations >= 10) ? iterations / 10 : 1;
+    // Phase 1: Warmup — stabilize turbo boost, warm caches and branch predictors
+    const auto warmup_timer = NOW();
 
-    double minimum_time = DBL_MAX, maximum_time = 0, total_time = 0;
-
-    for (size_t i = 0; i < iterations; ++i)
+    for (size_t i = 0; i < BENCHMARK_WARMUP_ITERATIONS; ++i)
     {
-        const auto single_iter_timer = NOW();
-
         function();
+    }
 
-        const auto single_elapsed = NOW_DIFF(single_iter_timer);
+    const double warmup_us = NOW_DIFF(warmup_timer);
 
-        total_time += single_elapsed;
+    // Phase 2: Batched measurement
+    // Calibrate batch size from warmup timing so each batch takes ~BENCHMARK_TARGET_BATCH_US
+    const size_t max_batch = (iterations >= 10) ? (iterations / 10) : 1;
+    size_t batch_size;
 
-        if (i % tenth == 0)
+    if (warmup_us > 0.0)
+    {
+        const double est_per_op_us = warmup_us / static_cast<double>(BENCHMARK_WARMUP_ITERATIONS);
+        const double ideal = BENCHMARK_TARGET_BATCH_US / est_per_op_us;
+
+        // Clamp via double comparison first to avoid UB casting huge doubles to size_t
+        if (ideal < 1.0)
         {
+            batch_size = 1;
+        }
+        else if (ideal > static_cast<double>(max_batch))
+        {
+            batch_size = max_batch;
+        }
+        else
+        {
+            batch_size = static_cast<size_t>(ideal);
+        }
+    }
+    else
+    {
+        // Fallback: warmup too fast to measure, use static sizing
+        batch_size = (BENCHMARK_BATCH_SIZE < max_batch) ? BENCHMARK_BATCH_SIZE : max_batch;
+    }
+
+    const size_t num_batches = (iterations + batch_size - 1) / batch_size;
+
+    constexpr size_t progress_width = 10;
+    size_t dots_printed = 0;
+
+    std::vector<double> batch_times(num_batches);
+
+    for (size_t b = 0; b < num_batches; ++b)
+    {
+        const auto batch_timer = NOW();
+
+        for (size_t i = 0; i < batch_size; ++i)
+        {
+            function();
+        }
+
+        batch_times[b] = NOW_DIFF(batch_timer) / static_cast<double>(batch_size);
+
+        if (num_batches < progress_width)
+        {
+            // Fewer batches than dots: one dot per batch, pad with spaces after
             std::cout << "." << std::flush;
+            ++dots_printed;
         }
-
-        if (single_elapsed > maximum_time)
+        else
         {
-            maximum_time = single_elapsed;
-        }
-        else if (single_elapsed < minimum_time && single_elapsed >= 0)
-        {
-            minimum_time = single_elapsed;
+            // Distribute exactly 10 dots evenly across batches
+            const size_t target_raw = ((b + 1) * progress_width) / num_batches;
+            const size_t target_dots = (target_raw < progress_width) ? target_raw : progress_width;
+            while (dots_printed < target_dots)
+            {
+                std::cout << "." << std::flush;
+                ++dots_printed;
+            }
         }
     }
 
-    const auto average_time = total_time / static_cast<double>(iterations);
+    // Pad remaining space so columns always align
+    while (dots_printed < progress_width)
+    {
+        std::cout << " " << std::flush;
+        ++dots_printed;
+    }
 
-    std::cout << std::fixed << std::setprecision(precision) << std::setw(column_width) << average_time << std::fixed
+    // Phase 3: Statistics
+    std::sort(batch_times.begin(), batch_times.end());
+
+    const auto median_time = batch_times[num_batches / 2];
+    const auto minimum_time = batch_times.front();
+    const auto maximum_time = batch_times.back();
+
+    double total_time = 0;
+    for (const auto &t : batch_times)
+    {
+        total_time += t;
+    }
+    total_time *= static_cast<double>(batch_size);
+
+    std::cout << std::fixed << std::setprecision(precision) << std::setw(column_width) << median_time << std::fixed
               << std::setprecision(precision) << std::setw(column_width) << minimum_time << std::fixed
               << std::setprecision(precision) << std::setw(column_width) << maximum_time << std::fixed
-              << std::setprecision(precision) << std::setw(column_width) << total_time << " ms" << std::endl;
+              << std::setprecision(precision) << std::setw(column_width + 8) << total_time << " us" << std::endl;
 }
 
 /**

@@ -25,11 +25,36 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p1p1_to_p2.h
+ * @brief Convert a completed point to projective coordinates.
+ *
+ * "Completing" a point: ge_p1p1 stores the result of addition or doubling
+ * in a deferred form where X and Y each have their own denominator (Z and T).
+ * This conversion multiplies out to get a standard projective point: X*T,
+ * Y*Z, Z*T. The T coordinate is discarded, giving a ge_p2. Costs 3 field
+ * multiplications.
+ */
+
 #ifndef ED25519_GE_P1P1_TO_P2_H
 #define ED25519_GE_P1P1_TO_P2_H
 
+#include "fe_mul.h"
 #include "ge.h"
 
-void ge_p1p1_to_p2(ge_p2 *r, const ge_p1p1 *p);
+/**
+ * @brief Converts a ge_p1p1 (completed) point to ge_p2 (projective).
+ *
+ * Computes r.X = p.X * p.T, r.Y = p.Y * p.Z, r.Z = p.Z * p.T.
+ *
+ * @param r Output projective point.
+ * @param p Input completed point.
+ */
+static inline void ge_p1p1_to_p2(ge_p2 *r, const ge_p1p1 *p)
+{
+    fe_mul(r->X, p->X, p->T);
+    fe_mul(r->Y, p->Y, p->Z);
+    fe_mul(r->Z, p->Z, p->T);
+}
 
 #endif // ED25519_GE_P1P1_TO_P2_H

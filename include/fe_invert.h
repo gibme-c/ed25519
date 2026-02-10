@@ -25,11 +25,43 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_invert.h
+ * @brief Field element multiplicative inverse over GF(2^255 - 19).
+ *
+ * Computes 1/z using Fermat's little theorem: in a prime field, z^(p-1) = 1,
+ * so z^(p-2) = 1/z. Since p-2 = 2^255 - 21, we can compute this with a
+ * carefully chosen sequence of squarings and multiplications called an
+ * "addition chain." The chain requires about 254 squarings and 11
+ * multiplications -- expensive, which is exactly why projective coordinates
+ * exist (they batch all the inversions to the very end).
+ */
+
 #ifndef ED25519_FE_INVERT_H
 #define ED25519_FE_INVERT_H
 
 #include "fe.h"
 
-void fe_invert(fe out, const fe z);
+/**
+ * @brief Computes the multiplicative inverse: out = z^(p-2) mod p.
+ *
+ * Uses Fermat's little theorem with an addition chain.
+ *
+ * @param out Output field element (the inverse).
+ * @param z Input field element.
+ */
+#if ED25519_PLATFORM_64BIT
+void fe_invert_x64(fe out, const fe z);
+static inline void fe_invert(fe out, const fe z)
+{
+    fe_invert_x64(out, z);
+}
+#else
+void fe_invert_portable(fe out, const fe z);
+static inline void fe_invert(fe out, const fe z)
+{
+    fe_invert_portable(out, z);
+}
+#endif
 
 #endif // ED25519_FE_INVERT_H

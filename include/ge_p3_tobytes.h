@@ -25,11 +25,41 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p3_tobytes.h
+ * @brief Serialize an extended point to bytes.
+ *
+ * Same compressed encoding as ge_tobytes but starting from the extended
+ * (ge_p3) representation. Since both p2 and p3 share X, Y, Z coordinates,
+ * the serialization logic is the same: divide by Z to get affine, encode y,
+ * and stash the sign of x in the high bit.
+ */
+
 #ifndef ED25519_GE_P3_TOBYTES_H
 #define ED25519_GE_P3_TOBYTES_H
 
 #include "ge.h"
 
-void ge_p3_tobytes(unsigned char *s, const ge_p3 *h);
+/**
+ * @brief Serializes a ge_p3 point to 32-byte compressed Edwards form.
+ *
+ * Computes the affine y-coordinate and encodes the sign of x in the high bit.
+ *
+ * @param s Output byte array (32 bytes).
+ * @param h Input extended point.
+ */
+#if ED25519_PLATFORM_64BIT
+void ge_p3_tobytes_x64(unsigned char *s, const ge_p3 *h);
+static inline void ge_p3_tobytes(unsigned char *s, const ge_p3 *h)
+{
+    ge_p3_tobytes_x64(s, h);
+}
+#else
+void ge_p3_tobytes_portable(unsigned char *s, const ge_p3 *h);
+static inline void ge_p3_tobytes(unsigned char *s, const ge_p3 *h)
+{
+    ge_p3_tobytes_portable(s, h);
+}
+#endif
 
 #endif // ED25519_GE_P3_TOBYTES_H

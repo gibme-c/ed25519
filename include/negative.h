@@ -25,9 +25,32 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file negative.h
+ * @brief Constant-time sign check for signed integers.
+ *
+ * Returns 1 if the input is negative, 0 otherwise. Extracts the sign bit
+ * via an arithmetic right shift, avoiding branches. Used to determine the
+ * sign of scalar digits during windowed scalar multiplication.
+ */
+
 #ifndef ED25519_NEGATIVE_H
 #define ED25519_NEGATIVE_H
 
-unsigned char negative(signed char b);
+#include "ct_barrier.h"
+
+/**
+ * @brief Returns 1 if the input is negative, 0 otherwise (constant-time).
+ *
+ * @param b Signed byte value.
+ * @return 1 if b < 0, 0 otherwise.
+ */
+static inline unsigned char negative(signed char b)
+{
+    unsigned long long x = b; /* 18446744073709551361..18446744073709551615: yes; 0..255: no */
+    x = ct_barrier_u64(x);
+    x >>= 63; /* 1: yes; 0: no */
+    return (unsigned char)x;
+}
 
 #endif // ED25519_NEGATIVE_H

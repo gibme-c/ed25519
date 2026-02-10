@@ -25,6 +25,11 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file slide.cpp
+ * @brief Implementation of signed-radix-16 sliding window decomposition.
+ */
+
 #include "slide.h"
 
 void slide(signed char *r, const unsigned char *a)

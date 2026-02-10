@@ -25,11 +25,30 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p3_0.h
+ * @brief Set ge_p3 to the neutral element.
+ */
+
 #ifndef ED25519_GE_P3_0_H
 #define ED25519_GE_P3_0_H
 
 #include "ge.h"
 
-void ge_p3_0(ge_p3 *h);
+/**
+ * @brief Sets h to the neutral element (0:1:1:0) in extended coordinates.
+ *
+ * @param h Output point.
+ */
+#include "fe_0.h"
+#include "fe_1.h"
+
+static inline void ge_p3_0(ge_p3 *h)
+{
+    fe_0(h->X);
+    fe_1(h->Y);
+    fe_1(h->Z);
+    fe_0(h->T);
+}
 
 #endif // ED25519_GE_P3_0_H

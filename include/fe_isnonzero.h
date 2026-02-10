@@ -25,11 +25,38 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_isnonzero.h
+ * @brief Check if a field element is nonzero.
+ *
+ * Serializes to bytes and ORs them together to check for zero without
+ * branching on individual limb values. Used in point decompression to
+ * detect edge cases.
+ */
+
 #ifndef ED25519_FE_ISNONZERO_H
 #define ED25519_FE_ISNONZERO_H
 
 #include "fe.h"
 
-int fe_isnonzero(const fe f);
+/**
+ * @brief Returns nonzero if the field element is not zero.
+ *
+ * @param f Input field element.
+ * @return Nonzero value if f != 0, zero if f == 0.
+ */
+#if ED25519_PLATFORM_64BIT
+int fe_isnonzero_x64(const fe f);
+static inline int fe_isnonzero(const fe f)
+{
+    return fe_isnonzero_x64(f);
+}
+#else
+int fe_isnonzero_portable(const fe f);
+static inline int fe_isnonzero(const fe f)
+{
+    return fe_isnonzero_portable(f);
+}
+#endif
 
 #endif // ED25519_FE_ISNONZERO_H

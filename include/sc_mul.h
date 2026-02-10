@@ -25,11 +25,41 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file sc_mul.h
+ * @brief Scalar multiplication modulo the group order l.
+ *
+ * Multiplies two 32-byte scalars and reduces modulo l. Scalar multiplication
+ * produces a 512-bit intermediate that must be carefully reduced. Uses the
+ * portable implementation on all platforms (the 64-bit optimization was not
+ * pursued for standalone multiplication since sc_muladd is the more common
+ * hot path in Ed25519 signing).
+ */
+
 #ifndef ED25519_SC_MUL_H
 #define ED25519_SC_MUL_H
 
-#include "sc.h"
+#include "ed25519_platform.h"
 
-void sc_mul(unsigned char *s, const unsigned char *a, const unsigned char *b);
+/**
+ * @brief Multiplies two scalars modulo l: s = a * b mod l.
+ *
+ * @param s Output 32-byte scalar.
+ * @param a First input 32-byte scalar.
+ * @param b Second input 32-byte scalar.
+ */
+#if ED25519_PLATFORM_64BIT
+void sc_mul_x64(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_mul(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_mul_x64(s, a, b);
+}
+#else
+void sc_mul_portable(unsigned char *s, const unsigned char *a, const unsigned char *b);
+static inline void sc_mul(unsigned char *s, const unsigned char *a, const unsigned char *b)
+{
+    sc_mul_portable(s, a, b);
+}
+#endif
 
 #endif // ED25519_SC_MUL_H

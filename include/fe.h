@@ -25,11 +25,39 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe.h
+ * @brief Field element type for GF(2^255 - 19).
+ *
+ * A field element represents an integer modulo the prime p = 2^255 - 19.
+ * These are the x and y coordinates of points on the Ed25519 curve. All
+ * curve arithmetic ultimately boils down to add, subtract, multiply, and
+ * square operations on field elements.
+ *
+ * On 64-bit platforms, each element is 5 uint64_t limbs in radix-2^51. This
+ * is fast because 51-bit limbs let you multiply two limbs and accumulate
+ * several products without overflowing a 128-bit intermediate. On 32-bit
+ * platforms, we use the portable representation: 10 int32_t limbs with
+ * alternating 26-bit and 25-bit widths. Both representations are 40 bytes.
+ */
+
 #ifndef ED25519_FE_H
 #define ED25519_FE_H
 
+#include "ed25519_platform.h"
+
 #include <cstdint>
 
+/**
+ * @brief A field element modulo the prime p = 2^255 - 19.
+ *
+ * On 64-bit (x86_64/ARM64): stored as 5 limbs of uint64_t in radix-2^51 representation.
+ * Otherwise: stored as 10 limbs of int32_t with alternating 26-bit and 25-bit widths.
+ */
+#if ED25519_PLATFORM_64BIT
+typedef uint64_t fe[5];
+#else
 typedef int32_t fe[10];
+#endif
 
 #endif // ED25519_FE_H

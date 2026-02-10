@@ -25,11 +25,27 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file fe_copy.h
+ * @brief Copy a field element.
+ */
+
 #ifndef ED25519_FE_COPY_H
 #define ED25519_FE_COPY_H
 
 #include "fe.h"
 
-void fe_copy(fe h, const fe f);
+#include <cstring>
+
+/**
+ * @brief Copies field element f into h.
+ *
+ * @param h Destination field element.
+ * @param f Source field element.
+ */
+static inline void fe_copy(fe h, const fe f)
+{
+    std::memcpy(h, f, sizeof(fe));
+}
 
 #endif // ED25519_FE_COPY_H

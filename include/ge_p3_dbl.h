@@ -25,11 +25,37 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+/**
+ * @file ge_p3_dbl.h
+ * @brief Point doubling from extended coordinates.
+ *
+ * Convenience wrapper that drops the T coordinate (p3 -> p2) and then calls
+ * ge_p2_dbl. Since doubling doesn't use T, there's no point in keeping it
+ * around. The result is a ge_p1p1 that can be converted back to p3 if the T
+ * coordinate is needed for a subsequent addition.
+ */
+
 #ifndef ED25519_GE_P3_DBL_H
 #define ED25519_GE_P3_DBL_H
 
 #include "ge.h"
 
-void ge_p3_dbl(ge_p1p1 *r, const ge_p3 *p);
+/**
+ * @brief Doubles an extended point: r = 2 * p.
+ *
+ * Converts to projective internally and calls ge_p2_dbl.
+ *
+ * @param r Output completed point.
+ * @param p Input extended point.
+ */
+#include "ge_p2_dbl.h"
+#include "ge_p3_to_p2.h"
+
+static inline void ge_p3_dbl(ge_p1p1 *r, const ge_p3 *p)
+{
+    ge_p2 q;
+    ge_p3_to_p2(&q, p);
+    ge_p2_dbl(r, &q);
+}
 
 #endif // ED25519_GE_P3_DBL_H
