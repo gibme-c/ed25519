@@ -561,6 +561,7 @@ void ed25519_autotune(void)
                 int64_t best_time =
                     bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_x64, s1, &test_point, s2);
                 decltype(dispatch_table.dsm_base_negate_vt) best_fn = ge_double_scalarmult_base_negate_vartime_x64;
+                (void)best_time;
 
 #if !ED25519_NO_AVX512
                 if (features & ED25519_CPU_AVX512IFMA)
@@ -582,6 +583,7 @@ void ed25519_autotune(void)
                 int64_t best_time =
                     bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_x64, s1, &test_point, s2, test_dsmp);
                 decltype(dispatch_table.dsm_negate_vt) best_fn = ge_double_scalarmult_negate_vartime_x64;
+                (void)best_time;
 
 #if !ED25519_NO_AVX512
                 if (features & ED25519_CPU_AVX512IFMA)

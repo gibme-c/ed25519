@@ -65,6 +65,7 @@ cmake --build build --config Release -j
 | `ENABLE_LTO` | `OFF` | Enable link-time optimization |
 | `ENABLE_AVX2` | `ON`* | Enable AVX2 SIMD backend with runtime dispatch |
 | `ENABLE_AVX512` | `ON`* | Enable AVX-512 IFMA SIMD backend with runtime dispatch |
+| `BUILD_TOOLS` | `OFF` | Build the test vector generator (`ed25519-gen-testvectors`) |
 | `CMAKE_BUILD_TYPE` | `Release` | `Debug`, `Release`, or `RelWithDebInfo` |
 
 \* On x86_64 only. Both default to `OFF` on other architectures or when `FORCE_PORTABLE` is set. Set either to `OFF` to benchmark individual code paths in isolation.
@@ -257,6 +258,61 @@ On x86_64, SIMD-accelerated backends are selected at runtime based on detected C
 ### Secure Erasure
 
 - **`ed25519_secure_erase`** — Zeroes memory in a way the compiler can't optimize away. Uses `SecureZeroMemory` (MSVC/Windows), `memset_s` (C11), `explicit_bzero` (glibc 2.25+, OpenBSD, FreeBSD), or a volatile function pointer to `memset` as a last resort.
+
+## Testing
+
+Build with `-DBUILD_TESTS=ON` to get the `ed25519-tests` executable. CLI options:
+
+| Flag | Effect |
+|------|--------|
+| *(none)* | Run with baseline dispatch (x64 or portable, no SIMD) |
+| `--init` | Use CPUID heuristic dispatch before running tests |
+| `--autotune` | Use benchmarked best-per-function dispatch before running tests |
+
+The test suite has three layers:
+
+### Hand-Written Tests
+
+Deterministic tests for operations not covered by the other layers: `sc_reduce` (32/64-byte), `sc_clamp`, `sc_check_reduced`, `sc_check_clamped`, `sc_isnonzero`, `fe_frombytes`/`fe_tobytes` roundtrip, `ge_scalarmult_base_ct` (RFC 8032 vectors), `ge_frombytes` (roundtrip, non-canonical rejection, off-curve rejection), `ge_fromfe_frombytes`, subgroup checking, ristretto255 RFC 9496 vectors (16 generator multiples, 29 bad encodings, 7 hash-to-group, 4 equivalence), batch scalar multiplication (N=0..17), multi-scalar multiplication (Straus and Pippenger), dispatch init/autotune, and edge cases (zero scalar, identity point, scalar=1, batch-vs-single cross-validation).
+
+### Generated Test Vectors
+
+Independently validated deterministic vectors covering scalar, field element, group element, and ristretto255 operations. The pipeline:
+
+1. **Generator** (`tools/gen_test_vectors.cpp`) — built with `-DFORCE_PORTABLE=ON` to use the trusted portable backend. Emits JSON to `test_vectors/ed25519_test_vectors.json`.
+2. **Validator** (`tools/validate_test_vectors.py`) — independently recomputes every result using PyNaCl (libsodium bindings). Validates all vectors before they're compiled into tests.
+3. **Converter** (`tools/json_to_header.py`) — converts JSON to `include/ed25519_test_vectors.h` with constexpr C++ structs.
+
+Operations covered: `sc_add`, `sc_sub`, `sc_mul`, `sc_muladd`, `sc_mulsub`, `sc_reduce` (32/64-byte), `sc_clamp`, `fe_frombytes`/`fe_tobytes` roundtrip, `fe_add`, `fe_sub`, `fe_mul`, `fe_sq`, `fe_sq2`, `fe_neg`, `fe_invert`, `fe_pow22523`, generator/identity points, `ge_scalarmult_base_ct`, `ge_scalarmult_ct`, `ge_double_scalarmult_base_negate_vartime`, `ge_multiscalar_mul_vartime`, `ge_frombytes_vartime` (valid/invalid), `ge_p3_to_wei25519`, `ristretto255_encode`/`decode` roundtrip, `ristretto255_from_uniform_bytes`.
+
+### Fuzz Tests (Property-Based)
+
+25 randomized test functions exercising algebraic invariants with a fixed-seed PRNG (`std::mt19937_64`, seed=42, 256 iterations each):
+
+- **Scalar**: commutativity, associativity, identity, inverse for add/mul; definition checks for muladd/mulsub; reduce idempotency; clamp bit properties
+- **Field element**: frombytes/tobytes roundtrip idempotency; add/sub inverse; mul commutativity/associativity/distributivity; sq(f)==mul(f,f); f\*invert(f)==1; cmov correctness
+- **Group element**: tobytes/frombytes roundtrip; 0\*P==identity, 1\*P==P, l\*P==identity; scalarmult linearity and compatibility; DSM matches serial
+- **Batch**: batch CT/DSM/shared-scalar results match serial for various N
+- **MSM**: MSM n=1 matches scalarmult, n=2..8 matches sum of individual; zero scalar, duplicate points, MSM base consistency
+- **Ristretto255**: encode/decode roundtrip and determinism; equals reflexivity/symmetry; from_uniform_bytes determinism
+- **Cross-backend**: captures a fingerprint of deterministic operation results before `ed25519_init()`, compares after SIMD dispatch to ensure all backends produce identical output
+
+### Regenerating Test Vectors
+
+```bash
+# Build the generator with the portable backend
+cmake -S . -B build-portable -DFORCE_PORTABLE=ON -DBUILD_TOOLS=ON
+cmake --build build-portable --config Release --target ed25519-gen-testvectors
+
+# Generate JSON
+./build-portable/ed25519-gen-testvectors > test_vectors/ed25519_test_vectors.json
+
+# Validate independently (requires PyNaCl: pip install pynacl)
+python tools/validate_test_vectors.py test_vectors/ed25519_test_vectors.json
+
+# Convert to C++ header
+python tools/json_to_header.py test_vectors/ed25519_test_vectors.json include/ed25519_test_vectors.h
+```
 
 ## Benchmarking
 

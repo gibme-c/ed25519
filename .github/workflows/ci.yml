@@ -83,20 +83,30 @@ jobs:
       - name: Build
         run: cmake --build build --config Release -j
 
-      - name: Run Tests
+      - name: Resolve test executable path
+        id: exe
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "windows-latest" ] && [ "${{ matrix.name }}" = "msvc" ]; then
-            ./build/Release/ed25519-tests.exe
+            echo "tests=./build/Release/ed25519-tests.exe" >> "$GITHUB_OUTPUT"
+            echo "bench=./build/Release/ed25519-benchmark.exe" >> "$GITHUB_OUTPUT"
           else
-            ./build/ed25519-tests
+            echo "tests=./build/ed25519-tests" >> "$GITHUB_OUTPUT"
+            echo "bench=./build/ed25519-benchmark" >> "$GITHUB_OUTPUT"
           fi
-        shell: bash
 
-      - name: Run Benchmark
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ] && [ "${{ matrix.name }}" = "msvc" ]; then
-            ./build/Release/ed25519-benchmark.exe
-          else
-            ./build/ed25519-benchmark
-          fi
+      - name: Tests (baseline)
         shell: bash
+        run: ${{ steps.exe.outputs.tests }}
+
+      - name: Tests (--init)
+        shell: bash
+        run: ${{ steps.exe.outputs.tests }} --init
+
+      - name: Tests (--autotune)
+        shell: bash
+        run: ${{ steps.exe.outputs.tests }} --autotune
+
+      - name: Benchmark
+        shell: bash
+        run: ${{ steps.exe.outputs.bench }}

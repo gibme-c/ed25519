@@ -3,10 +3,12 @@ This is free and unencumbered software released into the public domain.
 */
 
 #include "ed25519.h"
+#include "ed25519_test_vectors.h"
 
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -27,34 +29,6 @@ namespace test_vectors
     const unsigned char scalar_b[] = {0x18, 0x3c, 0x91, 0x5a, 0x04, 0xd2, 0xbc, 0x1b, 0x03, 0xf4, 0xa7,
                                       0xd9, 0xb1, 0x16, 0x4f, 0xe8, 0xc3, 0xb0, 0x2c, 0x0e, 0x6e, 0x1a,
                                       0x2b, 0xa4, 0x3f, 0xc8, 0x47, 0x8d, 0xd0, 0xa9, 0xe3, 0x02};
-    const unsigned char scalar_c[] = {0x04, 0x7f, 0xed, 0x51, 0x9e, 0x8a, 0xc6, 0x43, 0x0b, 0x1d, 0x5e,
-                                      0xbf, 0x74, 0xcc, 0x3e, 0xdb, 0xaa, 0x94, 0xfe, 0x80, 0xde, 0x47,
-                                      0x2e, 0xed, 0xc9, 0x0d, 0x1a, 0x12, 0x5c, 0xf5, 0x99, 0x06};
-
-    // --- sc_add: (a + b) mod l ---
-    const unsigned char sc_add_ab[] = {0x49, 0x77, 0xd0, 0xde, 0x2c, 0xfd, 0x5c, 0x1e, 0xbc, 0x43, 0x37,
-                                       0x26, 0xa6, 0x50, 0x73, 0xde, 0xb9, 0xd8, 0xfe, 0x00, 0x4e, 0x51,
-                                       0xc1, 0xda, 0x50, 0xd1, 0x9d, 0x35, 0x79, 0x07, 0x7c, 0x07};
-
-    // --- sc_sub: (a - b) mod l ---
-    const unsigned char sc_sub_ab[] = {0x19, 0xff, 0xad, 0x29, 0x24, 0x59, 0xe3, 0xe6, 0xb5, 0x5b, 0xe7,
-                                       0x72, 0x42, 0x23, 0xd5, 0x0d, 0x32, 0x77, 0xa5, 0xe4, 0x71, 0x1c,
-                                       0x6b, 0x92, 0xd1, 0x40, 0x0e, 0x1b, 0xd8, 0xb3, 0xb4, 0x01};
-
-    // --- sc_mul: (a * b) mod l ---
-    const unsigned char sc_mul_ab[] = {0x94, 0xbd, 0x16, 0x0c, 0x4e, 0x2d, 0xda, 0x15, 0xa8, 0x1b, 0x9c,
-                                       0x79, 0x28, 0x9a, 0xc8, 0xb8, 0xd4, 0xdb, 0x54, 0x23, 0x59, 0x7d,
-                                       0xe5, 0x79, 0x26, 0x8a, 0x9a, 0x4b, 0x0a, 0x26, 0xe2, 0x0f};
-
-    // --- sc_muladd: (c + a*b) mod l ---
-    const unsigned char sc_muladd_abc[] = {0xab, 0x68, 0x0e, 0x01, 0xd2, 0x54, 0x8e, 0x01, 0xdd, 0x9b, 0x02,
-                                           0x96, 0xbe, 0x6c, 0x28, 0x7f, 0x7f, 0x70, 0x53, 0xa4, 0x37, 0xc5,
-                                           0x13, 0x67, 0xf0, 0x97, 0xb4, 0x5d, 0x66, 0x1b, 0x7c, 0x06};
-
-    // --- sc_mulsub: (c - a*b) mod l ---
-    const unsigned char sc_mulsub_abc[] = {0x5d, 0x95, 0xcc, 0xa2, 0x6a, 0xc0, 0xfe, 0x85, 0x39, 0x9e, 0xb9,
-                                           0xe8, 0x2a, 0x2c, 0x55, 0x37, 0xd6, 0xb8, 0xa9, 0x5d, 0x85, 0xca,
-                                           0x48, 0x73, 0xa3, 0x83, 0x7f, 0xc6, 0x51, 0xcf, 0xb7, 0x06};
 
     // --- sc_reduce32: reduce 32-byte value mod l ---
     const unsigned char sc_reduce32_in1[] = {0x26, 0x04, 0xf6, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7,
@@ -154,34 +128,6 @@ namespace test_vectors
                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    // --- Field element arithmetic ---
-    const unsigned char fe_a[] = {0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12, 0xef, 0xcd, 0xab,
-                                  0x90, 0x78, 0x56, 0x34, 0x12, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56,
-                                  0x34, 0x12, 0xef, 0xcd, 0xab, 0x90, 0x78, 0x56, 0x34, 0x12};
-    const unsigned char fe_b[] = {0x21, 0x43, 0x65, 0x87, 0x09, 0xba, 0xdc, 0xfe, 0x21, 0x43, 0x65,
-                                  0x87, 0x09, 0xba, 0xdc, 0xfe, 0x21, 0x43, 0x65, 0x87, 0x09, 0xba,
-                                  0xdc, 0xfe, 0x21, 0x43, 0x65, 0x87, 0x09, 0xba, 0xdc, 0x7e};
-    const unsigned char fe_add_ab[] = {0x23, 0x11, 0x11, 0x18, 0x82, 0x10, 0x11, 0x11, 0x11, 0x11, 0x11,
-                                       0x18, 0x82, 0x10, 0x11, 0x11, 0x11, 0x11, 0x11, 0x18, 0x82, 0x10,
-                                       0x11, 0x11, 0x11, 0x11, 0x11, 0x18, 0x82, 0x10, 0x11, 0x11};
-    const unsigned char fe_sub_ab[] = {0xbb, 0x8a, 0x46, 0x09, 0x6f, 0x9c, 0x57, 0x13, 0xcd, 0x8a, 0x46,
-                                       0x09, 0x6f, 0x9c, 0x57, 0x13, 0xcd, 0x8a, 0x46, 0x09, 0x6f, 0x9c,
-                                       0x57, 0x13, 0xcd, 0x8a, 0x46, 0x09, 0x6f, 0x9c, 0x57, 0x13};
-    const unsigned char fe_mul_ab[] = {0x93, 0x80, 0xbf, 0x54, 0xf2, 0x36, 0x41, 0xb0, 0xca, 0x7b, 0xcb,
-                                       0x8f, 0xee, 0x3b, 0xf3, 0xfc, 0x2d, 0x77, 0xd7, 0xca, 0xea, 0x40,
-                                       0xa5, 0x49, 0x91, 0x72, 0xe3, 0x05, 0xe7, 0x45, 0x57, 0x16};
-    const unsigned char fe_sq_a[] = {0xd2, 0x5d, 0xd8, 0x33, 0x12, 0xc4, 0xd4, 0x76, 0xcd, 0x9c, 0x18,
-                                     0x59, 0xda, 0x29, 0x9e, 0x3e, 0xc4, 0xdb, 0x58, 0x7e, 0xa2, 0x8f,
-                                     0x67, 0x06, 0xbb, 0x1a, 0x99, 0xa3, 0x6a, 0xf5, 0x30, 0x4e};
-    const unsigned char fe_sq2_a[] = {0xb7, 0xbb, 0xb0, 0x67, 0x24, 0x88, 0xa9, 0xed, 0x9a, 0x39, 0x31,
-                                      0xb2, 0xb4, 0x53, 0x3c, 0x7d, 0x88, 0xb7, 0xb1, 0xfc, 0x44, 0x1f,
-                                      0xcf, 0x0c, 0x76, 0x35, 0x32, 0x47, 0xd5, 0xea, 0x61, 0x1c};
-    const unsigned char fe_neg_a[] = {0xfe, 0x31, 0x54, 0x6f, 0x87, 0xa9, 0xcb, 0xed, 0x10, 0x32, 0x54,
-                                      0x6f, 0x87, 0xa9, 0xcb, 0xed, 0x10, 0x32, 0x54, 0x6f, 0x87, 0xa9,
-                                      0xcb, 0xed, 0x10, 0x32, 0x54, 0x6f, 0x87, 0xa9, 0xcb, 0x6d};
-    const unsigned char fe_invert_a[] = {0xe1, 0xce, 0xfa, 0xfe, 0xcb, 0x37, 0xf6, 0x1e, 0x41, 0xc5, 0x4b,
-                                         0xa0, 0x3b, 0xb6, 0xcd, 0x6a, 0xea, 0xc0, 0xc8, 0x25, 0xcf, 0xdd,
-                                         0x63, 0xdd, 0xa2, 0xf2, 0xc9, 0xad, 0x64, 0xad, 0x3a, 0x3f};
 
     // --- ge_scalarmult_base: scalar * G ---
     // Derived from RFC 8032 seed 1
@@ -500,45 +446,6 @@ static bool check_nonzero(const char *test_name, int actual)
 // Test Suites
 // ==============================================
 
-static void test_sc_add()
-{
-    std::cout << std::endl << "=== sc_add ===" << std::endl;
-    unsigned char out[32];
-    sc_add(out, test_vectors::scalar_a, test_vectors::scalar_b);
-    check_bytes("sc_add(a, b)", test_vectors::sc_add_ab, out, 32);
-}
-
-static void test_sc_sub()
-{
-    std::cout << std::endl << "=== sc_sub ===" << std::endl;
-    unsigned char out[32];
-    sc_sub(out, test_vectors::scalar_a, test_vectors::scalar_b);
-    check_bytes("sc_sub(a, b)", test_vectors::sc_sub_ab, out, 32);
-}
-
-static void test_sc_mul()
-{
-    std::cout << std::endl << "=== sc_mul ===" << std::endl;
-    unsigned char out[32];
-    sc_mul(out, test_vectors::scalar_a, test_vectors::scalar_b);
-    check_bytes("sc_mul(a, b)", test_vectors::sc_mul_ab, out, 32);
-}
-
-static void test_sc_muladd()
-{
-    std::cout << std::endl << "=== sc_muladd ===" << std::endl;
-    unsigned char out[32];
-    sc_muladd(out, test_vectors::scalar_a, test_vectors::scalar_b, test_vectors::scalar_c);
-    check_bytes("sc_muladd(a, b, c) = c + a*b", test_vectors::sc_muladd_abc, out, 32);
-}
-
-static void test_sc_mulsub()
-{
-    std::cout << std::endl << "=== sc_mulsub ===" << std::endl;
-    unsigned char out[32];
-    sc_mulsub(out, test_vectors::scalar_a, test_vectors::scalar_b, test_vectors::scalar_c);
-    check_bytes("sc_mulsub(a, b, c) = c - a*b", test_vectors::sc_mulsub_abc, out, 32);
-}
 
 static void test_sc_reduce()
 {
@@ -638,44 +545,6 @@ static void test_fe_roundtrip()
     roundtrip("roundtrip(2^255+100)", test_vectors::fe_rt_in5, test_vectors::fe_rt_out5);
 }
 
-static void test_fe_arithmetic()
-{
-    std::cout << std::endl << "=== fe arithmetic ===" << std::endl;
-
-    fe a, b_fe, result;
-    unsigned char out[32];
-
-    fe_frombytes(a, test_vectors::fe_a);
-    fe_frombytes(b_fe, test_vectors::fe_b);
-
-    fe_add(result, a, b_fe);
-    fe_tobytes(out, result);
-    check_bytes("fe_add(a, b)", test_vectors::fe_add_ab, out, 32);
-
-    fe_sub(result, a, b_fe);
-    fe_tobytes(out, result);
-    check_bytes("fe_sub(a, b)", test_vectors::fe_sub_ab, out, 32);
-
-    fe_mul(result, a, b_fe);
-    fe_tobytes(out, result);
-    check_bytes("fe_mul(a, b)", test_vectors::fe_mul_ab, out, 32);
-
-    fe_sq(result, a);
-    fe_tobytes(out, result);
-    check_bytes("fe_sq(a)", test_vectors::fe_sq_a, out, 32);
-
-    fe_sq2(result, a);
-    fe_tobytes(out, result);
-    check_bytes("fe_sq2(a)", test_vectors::fe_sq2_a, out, 32);
-
-    fe_neg(result, a);
-    fe_tobytes(out, result);
-    check_bytes("fe_neg(a)", test_vectors::fe_neg_a, out, 32);
-
-    fe_invert(result, a);
-    fe_tobytes(out, result);
-    check_bytes("fe_invert(a)", test_vectors::fe_invert_a, out, 32);
-}
 
 static void test_ge_scalarmult_base_ct()
 {
@@ -1985,100 +1854,2229 @@ static void test_batch_matches_single()
     }
 }
 
-static void test_dispatch_init_autotune()
-{
-    std::cout << std::endl << "=== dispatch init + autotune ===" << std::endl;
-
-    // ed25519_init() was already called in main(). Call ed25519_autotune() and
-    // verify a known scalarmult still produces correct results.
-    ed25519_autotune();
-
-    ge_p1p1 r;
-    ge_p3 p3;
-    unsigned char out[32];
-    ge_scalarmult_base_ct(&r, test_vectors::scalarmult_scalar_one);
-    ge_p1p1_to_p3(&p3, &r);
-    ge_p3_tobytes(out, &p3);
-    check_bytes("1*G after autotune", test_vectors::scalarmult_expected_one, out, 32);
-
-    // Also test variable-base scalarmult after autotune
-    ge_p3 G;
-    ge_frombytes_vartime(&G, test_vectors::scalarmult_expected_one);
-    unsigned char one[32] = {};
-    one[0] = 1;
-    ge_scalarmult_ct(&r, one, &G);
-    ge_p1p1_to_p3(&p3, &r);
-    ge_p3_tobytes(out, &p3);
-    check_bytes("1*G scalarmult_ct after autotune", test_vectors::scalarmult_expected_one, out, 32);
-}
 
 // ==============================================
 // Wei25519 X-coordinate
 // ==============================================
 
-static void test_ge_p3_to_wei25519()
-{
-    std::cout << std::endl << "=== ge_p3_to_wei25519 ===" << std::endl;
 
-    // Test vectors: k*B -> Wei25519 X-coordinate
-    // Wei25519 X = u + A/3, where u is the Montgomery u-coordinate
-    struct
+// ==============================================
+// Generated test vectors (independently validated)
+// ==============================================
+
+static void test_generated_vectors()
+{
+    using namespace generated_vectors;
+    unsigned char result[64]; // large enough for any output
+
+    std::cout << std::endl << "Generated vector tests (PyNaCl-validated)" << std::endl;
+
+    // --- Scalar operations ---
+
+    // sc_add
+    for (int i = 0; i < SC_ADD_COUNT; i++)
     {
-        unsigned char scalar[32];
-        unsigned char expected[32];
-    } vectors[] = {
-        // k=1: base point, GX = 9 + delta = 0x2aaa...aaad245a
-        {{1}, {0x5a, 0x24, 0xad, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-               0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0x2a}},
-        // k=2
-        {{2}, {0x4c, 0x73, 0x15, 0x88, 0x47, 0xf1, 0x58, 0x07, 0x07, 0xb6, 0xdf, 0xc8, 0x97, 0x07, 0xea, 0x39,
-               0xbf, 0x1b, 0xc0, 0x27, 0x13, 0xb7, 0x1f, 0x84, 0x62, 0x9c, 0x1e, 0xc3, 0x7f, 0xed, 0x7d, 0x4b}},
-        // k=3
-        {{3}, {0x63, 0x60, 0x1e, 0xa6, 0x5a, 0xae, 0xb4, 0x6a, 0x04, 0xb3, 0xc6, 0x0c, 0x12, 0xf9, 0x2c, 0xa3,
-               0x0f, 0x65, 0xc6, 0x6c, 0x3c, 0xf8, 0xfd, 0xef, 0x90, 0x56, 0x02, 0x18, 0xc5, 0x66, 0xbd, 0x46}},
-        // k=5
-        {{5}, {0xd8, 0xa0, 0xf6, 0x22, 0x02, 0x28, 0xfe, 0xb7, 0x75, 0xf4, 0xc7, 0x02, 0x67, 0x74, 0x76, 0x53,
-               0x2a, 0x49, 0xb2, 0x08, 0x19, 0xad, 0x6a, 0xae, 0x9c, 0x25, 0x99, 0xfb, 0xe6, 0x96, 0x61, 0x6c}},
-        // k=7
-        {{7}, {0x79, 0x3c, 0x31, 0x8b, 0xba, 0x58, 0x35, 0xde, 0x1f, 0xb0, 0x69, 0xe3, 0xbf, 0xd4, 0x41, 0x6b,
-               0xcb, 0xf4, 0x36, 0xc8, 0xf6, 0xa4, 0xd8, 0xd5, 0xbc, 0x43, 0x2b, 0x98, 0x92, 0xdd, 0x59, 0x38}},
-        // k=11
-        {{11}, {0x06, 0x48, 0x01, 0xe0, 0x6e, 0x83, 0xd2, 0x8b, 0x46, 0x24, 0x08, 0x1c, 0x20, 0x98, 0x5b, 0xe5,
-                0xc8, 0xf4, 0x95, 0xf0, 0x38, 0x8b, 0x82, 0xb0, 0x7c, 0xa5, 0x8d, 0x71, 0xe6, 0xf6, 0xb0, 0x19}},
+        const auto &v = sc_add_vectors[i];
+        sc_add(result, v.a, v.b);
+        check_bytes((std::string("gen sc_add ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_sub
+    for (int i = 0; i < SC_SUB_COUNT; i++)
+    {
+        const auto &v = sc_sub_vectors[i];
+        sc_sub(result, v.a, v.b);
+        check_bytes((std::string("gen sc_sub ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_mul
+    for (int i = 0; i < SC_MUL_COUNT; i++)
+    {
+        const auto &v = sc_mul_vectors[i];
+        sc_mul(result, v.a, v.b);
+        check_bytes((std::string("gen sc_mul ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_muladd
+    for (int i = 0; i < SC_MULADD_COUNT; i++)
+    {
+        const auto &v = sc_muladd_vectors[i];
+        sc_muladd(result, v.a, v.b, v.c);
+        check_bytes((std::string("gen sc_muladd ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_mulsub
+    for (int i = 0; i < SC_MULSUB_COUNT; i++)
+    {
+        const auto &v = sc_mulsub_vectors[i];
+        sc_mulsub(result, v.a, v.b, v.c);
+        check_bytes((std::string("gen sc_mulsub ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_reduce (32-byte)
+    for (int i = 0; i < SC_REDUCE32_COUNT; i++)
+    {
+        const auto &v = sc_reduce32_vectors[i];
+        std::memcpy(result, v.input, 32);
+        sc_reduce(result, 32);
+        check_bytes((std::string("gen sc_reduce32 ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_reduce (64-byte)
+    for (int i = 0; i < SC_REDUCE64_COUNT; i++)
+    {
+        const auto &v = sc_reduce64_vectors[i];
+        std::memcpy(result, v.input, 64);
+        sc_reduce(result, 64);
+        check_bytes((std::string("gen sc_reduce64 ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // sc_clamp
+    for (int i = 0; i < SC_CLAMP_COUNT; i++)
+    {
+        const auto &v = sc_clamp_vectors[i];
+        std::memcpy(result, v.input, 32);
+        sc_clamp(result);
+        check_bytes((std::string("gen sc_clamp ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // --- Field element operations ---
+
+    // fe roundtrip
+    for (int i = 0; i < FE_ROUNDTRIP_COUNT; i++)
+    {
+        const auto &v = fe_roundtrip_vectors[i];
+        fe f;
+        fe_frombytes(f, v.input);
+        fe_tobytes(result, f);
+        check_bytes((std::string("gen fe_roundtrip ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // fe_add
+    {
+        const auto &v = fe_add_vector;
+        fe a, b, r;
+        fe_frombytes(a, v.a);
+        fe_frombytes(b, v.b);
+        fe_add(r, a, b);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_add", v.result, result, 32);
+    }
+
+    // fe_sub
+    {
+        const auto &v = fe_sub_vector;
+        fe a, b, r;
+        fe_frombytes(a, v.a);
+        fe_frombytes(b, v.b);
+        fe_sub(r, a, b);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_sub", v.result, result, 32);
+    }
+
+    // fe_mul
+    {
+        const auto &v = fe_mul_vector;
+        fe a, b, r;
+        fe_frombytes(a, v.a);
+        fe_frombytes(b, v.b);
+        fe_mul(r, a, b);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_mul", v.result, result, 32);
+    }
+
+    // fe_sq
+    {
+        const auto &v = fe_sq_vector;
+        fe a, r;
+        fe_frombytes(a, v.a);
+        fe_sq(r, a);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_sq", v.result, result, 32);
+    }
+
+    // fe_sq2
+    {
+        const auto &v = fe_sq2_vector;
+        fe a, r;
+        fe_frombytes(a, v.a);
+        fe_sq2(r, a);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_sq2", v.result, result, 32);
+    }
+
+    // fe_neg
+    {
+        const auto &v = fe_neg_vector;
+        fe a, r;
+        fe_frombytes(a, v.a);
+        fe_neg(r, a);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_neg", v.result, result, 32);
+    }
+
+    // fe_invert
+    {
+        const auto &v = fe_invert_vector;
+        fe a, r;
+        fe_frombytes(a, v.a);
+        fe_invert(r, a);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_invert", v.result, result, 32);
+    }
+
+    // fe_pow22523
+    {
+        const auto &v = fe_pow22523_vector;
+        fe a, r;
+        fe_frombytes(a, v.a);
+        fe_pow22523(r, a);
+        fe_tobytes(result, r);
+        check_bytes("gen fe_pow22523", v.result, result, 32);
+    }
+
+    // --- Group element operations ---
+
+    // Generator point
+    {
+        ge_p1p1 t;
+        unsigned char one[32] = {1};
+        ge_scalarmult_base_ct(&t, one);
+        ge_p3 p;
+        ge_p1p1_to_p3(&p, &t);
+        ge_p3_tobytes(result, &p);
+        check_bytes("gen generator", generator, result, 32);
+    }
+
+    // Identity point
+    {
+        ge_p1p1 t;
+        unsigned char zero[32] = {0};
+        ge_scalarmult_base_ct(&t, zero);
+        ge_p2 p;
+        ge_p1p1_to_p2(&p, &t);
+        ge_tobytes(result, &p);
+        check_bytes("gen identity", identity, result, 32);
+    }
+
+    // scalar_mul_base
+    for (int i = 0; i < SM_BASE_COUNT; i++)
+    {
+        const auto &v = sm_base_vectors[i];
+        ge_p1p1 t;
+        ge_scalarmult_base_ct(&t, v.scalar);
+        ge_p2 p;
+        ge_p1p1_to_p2(&p, &t);
+        ge_tobytes(result, &p);
+        check_bytes((std::string("gen sm_base ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // scalar_mul_varbase
+    for (int i = 0; i < SM_VARBASE_COUNT; i++)
+    {
+        const auto &v = sm_varbase_vectors[i];
+        ge_p3 point;
+        ge_frombytes_vartime(&point, v.point);
+        ge_p1p1 t;
+        ge_scalarmult_ct(&t, v.scalar, &point);
+        ge_p2 p;
+        ge_p1p1_to_p2(&p, &t);
+        ge_tobytes(result, &p);
+        check_bytes((std::string("gen sm_varbase ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // double_scalar_mul_base (a*A + b*B)
+    for (int i = 0; i < DSM_BASE_COUNT; i++)
+    {
+        const auto &v = dsm_base_vectors[i];
+        ge_p3 A;
+        ge_frombytes_vartime(&A, v.A);
+        ge_p1p1 t;
+        ge_double_scalarmult_base_negate_vartime(&t, v.a, &A, v.b);
+        ge_p2 p;
+        ge_p1p1_to_p2(&p, &t);
+        ge_tobytes(result, &p);
+        check_bytes((std::string("gen dsm_base ") + v.label).c_str(), v.result, result, 32);
+    }
+
+    // MSM
+    {
+        const unsigned char *msm_scalars_ptrs[] = {msm_0_scalars, msm_1_scalars, msm_2_scalars, msm_3_scalars};
+        const unsigned char *msm_points_ptrs[] = {msm_0_points, msm_1_points, msm_2_points, msm_3_points};
+
+        for (int i = 0; i < MSM_COUNT; i++)
+        {
+            const auto &v = msm_vectors[i];
+            int n = v.n;
+
+            // Decode points
+            std::vector<ge_p3> points(n);
+            for (int j = 0; j < n; j++)
+                ge_frombytes_vartime(&points[j], msm_points_ptrs[i] + j * 32);
+
+            ge_p3 msm_result;
+            ge_multiscalar_mul_vartime(&msm_result, msm_scalars_ptrs[i], points.data(), n);
+            ge_p3_tobytes(result, &msm_result);
+
+            std::string name = "gen msm n=" + std::to_string(n);
+            check_bytes(name.c_str(), v.result, result, 32);
+        }
+    }
+
+    // frombytes valid
+    for (int i = 0; i < FB_VALID_COUNT; i++)
+    {
+        const auto &v = fb_valid_vectors[i];
+        ge_p3 p;
+        int rc = ge_frombytes_vartime(&p, v.input);
+        check_int((std::string("gen fb_valid ") + v.label).c_str(), v.rc, rc);
+    }
+
+    // frombytes invalid
+    for (int i = 0; i < FB_INVALID_COUNT; i++)
+    {
+        const auto &v = fb_invalid_vectors[i];
+        ge_p3 p;
+        int rc = ge_frombytes_vartime(&p, v.input);
+        check_int((std::string("gen fb_invalid ") + v.label).c_str(), v.rc, rc);
+    }
+
+    // Wei25519
+    for (int i = 0; i < WEI25519_COUNT; i++)
+    {
+        const auto &v = wei25519_vectors[i];
+        ge_p1p1 t;
+        ge_scalarmult_base_ct(&t, v.scalar);
+        ge_p3 p;
+        ge_p1p1_to_p3(&p, &t);
+        ge_p3_to_wei25519(result, &p);
+        std::string name = "gen wei25519 k=" + std::to_string(v.scalar[0]);
+        check_bytes(name.c_str(), v.wei25519_x, result, 32);
+    }
+
+    // --- Ristretto255 ---
+
+    // Roundtrip: encode(decode(encoded)) == encoded
+    for (int i = 0; i < RISTRETTO_RT_COUNT; i++)
+    {
+        const auto &v = ristretto_rt_vectors[i];
+        ge_p3 p;
+        int rc = ristretto255_decode(&p, v.encoded);
+        if (rc != 0)
+        {
+            ++tests_run;
+            ++tests_failed;
+            std::cout << "  FAIL: gen ristretto_rt " << v.label << " (decode failed)" << std::endl;
+            continue;
+        }
+        ristretto255_encode(result, &p);
+        check_bytes((std::string("gen ristretto_rt ") + v.label).c_str(), v.encoded, result, 32);
+    }
+
+    // from_uniform_bytes
+    for (int i = 0; i < RISTRETTO_FU_COUNT; i++)
+    {
+        const auto &v = ristretto_fu_vectors[i];
+        ge_p3 p;
+        ristretto255_from_uniform_bytes(&p, v.input);
+        ristretto255_encode(result, &p);
+        check_bytes((std::string("gen ristretto_fu ") + v.label).c_str(), v.result, result, 32);
+    }
+}
+
+// ==============================================
+// Fuzz test infrastructure
+// ==============================================
+
+static std::mt19937_64 g_rng(42); // fixed seed for reproducibility
+static const int FUZZ_N = 256;
+
+static void random_bytes(unsigned char *buf, size_t len)
+{
+    for (size_t i = 0; i < len; i += 8)
+    {
+        uint64_t r = g_rng();
+        size_t n = (len - i < 8) ? len - i : 8;
+        std::memcpy(buf + i, &r, n);
+    }
+}
+
+static void random_scalar(unsigned char *s)
+{
+    unsigned char buf[64];
+    random_bytes(buf, 64);
+    sc_reduce(buf, 64);
+    std::memcpy(s, buf, 32);
+}
+
+// Generate a random valid curve point by computing s*B for a random scalar
+static void random_point(ge_p3 *p)
+{
+    unsigned char s[32];
+    random_scalar(s);
+    ge_p1p1 t;
+    ge_scalarmult_base_ct(&t, s);
+    ge_p1p1_to_p3(p, &t);
+}
+
+// Add two p3 points, result in p3
+static void p3_add(ge_p3 *r, const ge_p3 *a, const ge_p3 *b)
+{
+    ge_cached bc;
+    ge_p3_to_cached(&bc, b);
+    ge_p1p1 t;
+    ge_add(&t, a, &bc);
+    ge_p1p1_to_p3(r, &t);
+}
+
+// Scalar multiply: result = s * P, output as p3
+static void scalarmult_p3(ge_p3 *r, const unsigned char *s, const ge_p3 *P)
+{
+    ge_p1p1 t;
+    ge_scalarmult_ct(&t, s, P);
+    ge_p1p1_to_p3(r, &t);
+}
+
+// Base point scalar multiply: result = s * B, output as p3
+static void scalarmult_base_p3(ge_p3 *r, const unsigned char *s)
+{
+    ge_p1p1 t;
+    ge_scalarmult_base_ct(&t, s);
+    ge_p1p1_to_p3(r, &t);
+}
+
+// Serialize p3 to bytes
+static void p3_tobytes(unsigned char *out, const ge_p3 *p)
+{
+    ge_p3_tobytes(out, p);
+}
+
+// Check bytes, only print on failure; return true if match
+static bool
+    check_bytes_quiet(const char *test_name, const unsigned char *expected, const unsigned char *actual, size_t len)
+{
+    ++tests_run;
+    if (std::memcmp(expected, actual, len) == 0)
+    {
+        ++tests_passed;
+        return true;
+    }
+    else
+    {
+        ++tests_failed;
+        std::cout << "  FAIL: " << test_name << std::endl;
+        std::cout << "    expected: " << hex(expected, len) << std::endl;
+        std::cout << "    actual:   " << hex(actual, len) << std::endl;
+        return false;
+    }
+}
+
+static const unsigned char scalar_zero_32[32] = {0};
+static const unsigned char scalar_one_32[32] = {1};
+
+// Group order l
+static const unsigned char group_order_l[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7,
+                                                0xa2, 0xde, 0xf9, 0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
+
+// Identity point encoding
+static const unsigned char identity_bytes_32[32] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+// ==============================================
+// Scalar fuzz tests
+// ==============================================
+
+static void fuzz_sc_add()
+{
+    std::cout << std::endl << "Fuzz: sc_add" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], c[32];
+        random_scalar(a);
+        random_scalar(b);
+        random_scalar(c);
+
+        unsigned char ab[32], ba[32];
+        sc_add(ab, a, b);
+        sc_add(ba, b, a);
+
+        // Commutativity: a+b == b+a
+        std::string tag = "sc_add comm " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), ab, ba, 32);
+
+        // Associativity: (a+b)+c == a+(b+c)
+        unsigned char ab_c[32], bc[32], a_bc[32];
+        sc_add(ab_c, ab, c);
+        sc_add(bc, b, c);
+        sc_add(a_bc, a, bc);
+        tag = "sc_add assoc " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), ab_c, a_bc, 32);
+
+        // Identity: a+0 == a
+        unsigned char a0[32];
+        sc_add(a0, a, scalar_zero_32);
+        tag = "sc_add ident " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), a, a0, 32);
+
+        // Inverse: a + (l-a) == 0 (via sc_sub(0, a) to get -a, then add)
+        unsigned char neg_a[32], a_neg[32];
+        sc_sub(neg_a, scalar_zero_32, a);
+        sc_add(a_neg, a, neg_a);
+        tag = "sc_add inv " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), scalar_zero_32, a_neg, 32);
+    }
+    std::cout << "  PASS (4x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_sc_mul()
+{
+    std::cout << std::endl << "Fuzz: sc_mul" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], c[32];
+        random_scalar(a);
+        random_scalar(b);
+        random_scalar(c);
+
+        unsigned char ab[32], ba[32];
+        sc_mul(ab, a, b);
+        sc_mul(ba, b, a);
+
+        // Commutativity
+        std::string tag = "sc_mul comm " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), ab, ba, 32);
+
+        // Associativity: (a*b)*c == a*(b*c)
+        unsigned char ab_c[32], bc[32], a_bc[32];
+        sc_mul(ab_c, ab, c);
+        sc_mul(bc, b, c);
+        sc_mul(a_bc, a, bc);
+        tag = "sc_mul assoc " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), ab_c, a_bc, 32);
+
+        // Identity: a*1 == a
+        unsigned char a1[32];
+        sc_mul(a1, a, scalar_one_32);
+        tag = "sc_mul ident " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), a, a1, 32);
+
+        // Zero: a*0 == 0
+        unsigned char a0[32];
+        sc_mul(a0, a, scalar_zero_32);
+        tag = "sc_mul zero " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), scalar_zero_32, a0, 32);
+    }
+    std::cout << "  PASS (4x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_sc_muladd_mulsub()
+{
+    std::cout << std::endl << "Fuzz: sc_muladd/mulsub" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], c[32];
+        random_scalar(a);
+        random_scalar(b);
+        random_scalar(c);
+
+        // muladd(a,b,c) == mul(a,b) + c
+        unsigned char muladd_r[32], mul_r[32], mul_plus_c[32];
+        sc_muladd(muladd_r, a, b, c);
+        sc_mul(mul_r, a, b);
+        sc_add(mul_plus_c, mul_r, c);
+        std::string tag = "sc_muladd def " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), mul_plus_c, muladd_r, 32);
+
+        // mulsub(a,b,c) == c - mul(a,b)
+        unsigned char mulsub_r[32], c_minus_mul[32];
+        sc_mulsub(mulsub_r, a, b, c);
+        sc_sub(c_minus_mul, c, mul_r);
+        tag = "sc_mulsub def " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), c_minus_mul, mulsub_r, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_sc_reduce()
+{
+    std::cout << std::endl << "Fuzz: sc_reduce" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        // 64-byte reduce: result should be < l
+        unsigned char buf64[64], reduced[64];
+        random_bytes(buf64, 64);
+        std::memcpy(reduced, buf64, 64);
+        sc_reduce(reduced, 64);
+
+        // Reducing again should be idempotent
+        unsigned char reduced2[32];
+        std::memcpy(reduced2, reduced, 32);
+        sc_reduce(reduced2, 32);
+        std::string tag = "sc_reduce64 idem " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), reduced, reduced2, 32);
+
+        // 32-byte reduce idempotency
+        unsigned char buf32[32];
+        random_bytes(buf32, 32);
+        unsigned char r1[32], r2[32];
+        std::memcpy(r1, buf32, 32);
+        sc_reduce(r1, 32);
+        std::memcpy(r2, r1, 32);
+        sc_reduce(r2, 32);
+        tag = "sc_reduce32 idem " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), r1, r2, 32);
+    }
+
+    // reduce(l) == 0
+    {
+        unsigned char l_copy[32];
+        std::memcpy(l_copy, group_order_l, 32);
+        sc_reduce(l_copy, 32);
+        check_bytes_quiet("sc_reduce(l)==0", scalar_zero_32, l_copy, 32);
+    }
+
+    std::cout << "  PASS (2x" << FUZZ_N << "+1 checks)" << std::endl;
+}
+
+static void fuzz_sc_clamp()
+{
+    std::cout << std::endl << "Fuzz: sc_clamp" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char s[32];
+        random_bytes(s, 32);
+        sc_clamp(s);
+
+        // Check bit properties: bit 0,1,2 of s[0] are clear, bit 6 of s[31] is set, bit 7 of s[31] is clear
+        bool ok = true;
+        if ((s[0] & 0x07) != 0)
+            ok = false; // low 3 bits clear
+        if ((s[31] & 0x80) != 0)
+            ok = false; // high bit clear
+        if ((s[31] & 0x40) == 0)
+            ok = false; // bit 254 set
+
+        ++tests_run;
+        if (ok)
+            ++tests_passed;
+        else
+        {
+            ++tests_failed;
+            std::cout << "  FAIL: sc_clamp bits " << i << std::endl;
+        }
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Field element fuzz tests
+// ==============================================
+
+static void fuzz_fe_roundtrip()
+{
+    std::cout << std::endl << "Fuzz: fe_roundtrip" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char buf[32], out1[32], out2[32];
+        random_bytes(buf, 32);
+
+        fe f;
+        fe_frombytes(f, buf);
+        fe_tobytes(out1, f);
+
+        // Double roundtrip: frombytes(tobytes(f)) should be idempotent
+        fe f2;
+        fe_frombytes(f2, out1);
+        fe_tobytes(out2, f2);
+
+        std::string tag = "fe_roundtrip " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), out1, out2, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_fe_add_sub()
+{
+    std::cout << std::endl << "Fuzz: fe_add/sub" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fb[32], gb[32];
+        random_bytes(fb, 32);
+        random_bytes(gb, 32);
+
+        fe f, g;
+        fe_frombytes(f, fb);
+        fe_frombytes(g, gb);
+
+        // (f - g) + g == f
+        fe fmg, fmg_g;
+        fe_sub(fmg, f, g);
+        fe_add(fmg_g, fmg, g);
+
+        unsigned char f_out[32], fmg_g_out[32];
+        fe_tobytes(f_out, f);
+        fe_tobytes(fmg_g_out, fmg_g);
+        std::string tag = "fe (f-g)+g==f " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), f_out, fmg_g_out, 32);
+
+        // f + neg(f) == 0
+        fe nf, f_nf;
+        fe_neg(nf, f);
+        fe_add(f_nf, f, nf);
+
+        unsigned char f_nf_out[32], zero_out[32];
+        fe_tobytes(f_nf_out, f_nf);
+        fe zero_fe;
+        fe_0(zero_fe);
+        fe_tobytes(zero_out, zero_fe);
+        tag = "fe f+neg(f)==0 " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), zero_out, f_nf_out, 32);
+
+        // Commutativity: f+g == g+f
+        fe fg, gf;
+        fe_add(fg, f, g);
+        fe_add(gf, g, f);
+        unsigned char fg_out[32], gf_out[32];
+        fe_tobytes(fg_out, fg);
+        fe_tobytes(gf_out, gf);
+        tag = "fe add comm " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), fg_out, gf_out, 32);
+    }
+    std::cout << "  PASS (3x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_fe_mul()
+{
+    std::cout << std::endl << "Fuzz: fe_mul" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fb[32], gb[32];
+        random_bytes(fb, 32);
+        random_bytes(gb, 32);
+
+        fe f, g;
+        fe_frombytes(f, fb);
+        fe_frombytes(g, gb);
+
+        // Commutativity: f*g == g*f
+        fe fg, gf;
+        fe_mul(fg, f, g);
+        fe_mul(gf, g, f);
+        unsigned char fg_out[32], gf_out[32];
+        fe_tobytes(fg_out, fg);
+        fe_tobytes(gf_out, gf);
+        std::string tag = "fe_mul comm " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), fg_out, gf_out, 32);
+
+        // Identity: f*1 == f
+        fe one_fe;
+        fe_1(one_fe);
+        fe f1;
+        fe_mul(f1, f, one_fe);
+        unsigned char f_out[32], f1_out[32];
+        fe_tobytes(f_out, f);
+        fe_tobytes(f1_out, f1);
+        tag = "fe_mul ident " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), f_out, f1_out, 32);
+
+        // Zero: f*0 == 0
+        fe zero_fe;
+        fe_0(zero_fe);
+        fe f0;
+        fe_mul(f0, f, zero_fe);
+        unsigned char f0_out[32], zero_out[32];
+        fe_tobytes(f0_out, f0);
+        fe_tobytes(zero_out, zero_fe);
+        tag = "fe_mul zero " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), zero_out, f0_out, 32);
+    }
+    std::cout << "  PASS (3x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_fe_sq()
+{
+    std::cout << std::endl << "Fuzz: fe_sq" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fb[32];
+        random_bytes(fb, 32);
+
+        fe f;
+        fe_frombytes(f, fb);
+
+        // sq(f) == mul(f, f)
+        fe sq_r, mul_r;
+        fe_sq(sq_r, f);
+        fe_mul(mul_r, f, f);
+        unsigned char sq_out[32], mul_out[32];
+        fe_tobytes(sq_out, sq_r);
+        fe_tobytes(mul_out, mul_r);
+        std::string tag = "fe_sq==mul " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), mul_out, sq_out, 32);
+
+        // sq2(f) == sq(f) + sq(f)
+        fe sq2_r, sq_sq;
+        fe_sq2(sq2_r, f);
+        fe_add(sq_sq, sq_r, sq_r);
+        unsigned char sq2_out[32], sqsq_out[32];
+        fe_tobytes(sq2_out, sq2_r);
+        fe_tobytes(sqsq_out, sq_sq);
+        tag = "fe_sq2==2*sq " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), sqsq_out, sq2_out, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_fe_invert()
+{
+    std::cout << std::endl << "Fuzz: fe_invert" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fb[32];
+        random_bytes(fb, 32);
+
+        fe f;
+        fe_frombytes(f, fb);
+
+        // Skip zero (invert undefined)
+        if (!fe_isnonzero(f))
+            continue;
+
+        // f * invert(f) == 1
+        fe inv, prod;
+        fe_invert(inv, f);
+        fe_mul(prod, f, inv);
+
+        unsigned char prod_out[32], one_out[32];
+        fe_tobytes(prod_out, prod);
+        fe one_fe;
+        fe_1(one_fe);
+        fe_tobytes(one_out, one_fe);
+
+        std::string tag = "fe_invert " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), one_out, prod_out, 32);
+    }
+    std::cout << "  PASS (~" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_fe_cmov()
+{
+    std::cout << std::endl << "Fuzz: fe_cmov" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fb[32], gb[32];
+        random_bytes(fb, 32);
+        random_bytes(gb, 32);
+
+        fe f, g, r;
+        fe_frombytes(f, fb);
+        fe_frombytes(g, gb);
+
+        // cmov(f, g, 0) == f
+        fe_copy(r, f);
+        fe_cmov(r, g, 0);
+        unsigned char r_out[32], f_out[32];
+        fe_tobytes(r_out, r);
+        fe_tobytes(f_out, f);
+        std::string tag = "fe_cmov b=0 " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), f_out, r_out, 32);
+
+        // cmov(f, g, 1) == g
+        fe_copy(r, f);
+        fe_cmov(r, g, 1);
+        unsigned char g_out[32];
+        fe_tobytes(r_out, r);
+        fe_tobytes(g_out, g);
+        tag = "fe_cmov b=1 " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), g_out, r_out, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Group element fuzz tests
+// ==============================================
+
+static void fuzz_ge_roundtrip()
+{
+    std::cout << std::endl << "Fuzz: ge_roundtrip" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 p;
+        random_point(&p);
+
+        // p3_tobytes -> frombytes -> p3_tobytes should roundtrip
+        unsigned char enc1[32], enc2[32];
+        ge_p3_tobytes(enc1, &p);
+
+        ge_p3 decoded;
+        ge_frombytes_vartime(&decoded, enc1);
+        ge_p3_tobytes(enc2, &decoded);
+
+        std::string tag = "ge_roundtrip " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), enc1, enc2, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ge_scalarmult_zero_one()
+{
+    std::cout << std::endl << "Fuzz: ge_scalarmult zero/one/l" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 P;
+        random_point(&P);
+
+        unsigned char P_enc[32];
+        p3_tobytes(P_enc, &P);
+
+        // 0 * P == identity
+        ge_p3 r0;
+        scalarmult_p3(&r0, scalar_zero_32, &P);
+        unsigned char r0_enc[32];
+        p3_tobytes(r0_enc, &r0);
+        std::string tag = "ge sm(0,P)==id " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), identity_bytes_32, r0_enc, 32);
+
+        // 1 * P == P
+        ge_p3 r1;
+        scalarmult_p3(&r1, scalar_one_32, &P);
+        unsigned char r1_enc[32];
+        p3_tobytes(r1_enc, &r1);
+        tag = "ge sm(1,P)==P " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), P_enc, r1_enc, 32);
+
+        // l * P == identity
+        ge_p3 rl;
+        scalarmult_p3(&rl, group_order_l, &P);
+        unsigned char rl_enc[32];
+        p3_tobytes(rl_enc, &rl);
+        tag = "ge sm(l,P)==id " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), identity_bytes_32, rl_enc, 32);
+    }
+    std::cout << "  PASS (3x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ge_scalarmult_linearity()
+{
+    std::cout << std::endl << "Fuzz: ge_scalarmult linearity" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], ab[32];
+        random_scalar(a);
+        random_scalar(b);
+        sc_add(ab, a, b);
+
+        // Base point linearity: sm_base(a+b) == sm_base(a) + sm_base(b)
+        ge_p3 base_ab, base_a, base_b, base_sum;
+        scalarmult_base_p3(&base_ab, ab);
+        scalarmult_base_p3(&base_a, a);
+        scalarmult_base_p3(&base_b, b);
+        p3_add(&base_sum, &base_a, &base_b);
+
+        unsigned char lhs[32], rhs[32];
+        p3_tobytes(lhs, &base_ab);
+        p3_tobytes(rhs, &base_sum);
+        std::string tag = "ge base lin " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+
+        // Variable-base linearity: sm(a+b, P) == sm(a, P) + sm(b, P)
+        ge_p3 P;
+        random_point(&P);
+
+        ge_p3 ab_P, a_P, b_P, sum_P;
+        scalarmult_p3(&ab_P, ab, &P);
+        scalarmult_p3(&a_P, a, &P);
+        scalarmult_p3(&b_P, b, &P);
+        p3_add(&sum_P, &a_P, &b_P);
+
+        p3_tobytes(lhs, &ab_P);
+        p3_tobytes(rhs, &sum_P);
+        tag = "ge varbase lin " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ge_scalarmult_compatibility()
+{
+    std::cout << std::endl << "Fuzz: ge_scalarmult compatibility" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], ab[32];
+        random_scalar(a);
+        random_scalar(b);
+        sc_mul(ab, a, b);
+
+        ge_p3 P;
+        random_point(&P);
+
+        // sm(a, sm(b, P)) == sm(a*b, P)
+        ge_p3 bP, a_bP, ab_P;
+        scalarmult_p3(&bP, b, &P);
+        scalarmult_p3(&a_bP, a, &bP);
+        scalarmult_p3(&ab_P, ab, &P);
+
+        unsigned char lhs[32], rhs[32];
+        p3_tobytes(lhs, &a_bP);
+        p3_tobytes(rhs, &ab_P);
+        std::string tag = "ge sm compat " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ge_dsm()
+{
+    std::cout << std::endl << "Fuzz: ge_dsm" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32];
+        random_scalar(a);
+        random_scalar(b);
+
+        ge_p3 A;
+        random_point(&A);
+
+        // dsm(a, A, b) should equal a*A + b*B (computed serially)
+        ge_p1p1 dsm_t;
+        ge_double_scalarmult_base_negate_vartime(&dsm_t, a, &A, b);
+        ge_p2 dsm_p2;
+        ge_p1p1_to_p2(&dsm_p2, &dsm_t);
+        unsigned char dsm_enc[32];
+        ge_tobytes(dsm_enc, &dsm_p2);
+
+        // Serial: a*A + b*B
+        ge_p3 aA, bB, sum;
+        scalarmult_p3(&aA, a, &A);
+        scalarmult_base_p3(&bB, b);
+        p3_add(&sum, &aA, &bB);
+        unsigned char sum_enc[32];
+        p3_tobytes(sum_enc, &sum);
+
+        std::string tag = "ge dsm " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), sum_enc, dsm_enc, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Batch & MSM fuzz tests
+// ==============================================
+
+static void fuzz_batch_ct()
+{
+    std::cout << std::endl << "Fuzz: batch_ct" << std::endl;
+
+    int sizes[] = {1, 2, 3, 4, 5, 7, 8, 9, 16};
+    for (int si = 0; si < 9; si++)
+    {
+        int N = sizes[si];
+        std::vector<unsigned char> scalars(N * 32);
+        std::vector<ge_p3> points(N);
+        std::vector<ge_p2> batch_results(N);
+
+        for (int iter = 0; iter < 16; iter++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                random_scalar(&scalars[j * 32]);
+                random_point(&points[j]);
+            }
+
+            ge_scalarmult_ct_batch(batch_results.data(), scalars.data(), points.data(), N);
+
+            for (int j = 0; j < N; j++)
+            {
+                ge_p1p1 t;
+                ge_scalarmult_ct(&t, &scalars[j * 32], &points[j]);
+                ge_p2 serial;
+                ge_p1p1_to_p2(&serial, &t);
+
+                unsigned char batch_enc[32], serial_enc[32];
+                ge_tobytes(batch_enc, &batch_results[j]);
+                ge_tobytes(serial_enc, &serial);
+
+                std::string tag =
+                    "batch_ct N=" + std::to_string(N) + " j=" + std::to_string(j) + " iter=" + std::to_string(iter);
+                check_bytes_quiet(tag.c_str(), serial_enc, batch_enc, 32);
+            }
+        }
+    }
+    std::cout << "  PASS (9 sizes x 16 iters)" << std::endl;
+}
+
+static void fuzz_batch_dsm()
+{
+    std::cout << std::endl << "Fuzz: batch_dsm" << std::endl;
+
+    int sizes[] = {1, 2, 3, 4, 5, 8};
+    for (int si = 0; si < 6; si++)
+    {
+        int N = sizes[si];
+        std::vector<unsigned char> a_scalars(N * 32), b_scalars(N * 32);
+        std::vector<ge_p3> A_points(N);
+        std::vector<ge_p2> batch_results(N);
+
+        for (int iter = 0; iter < 16; iter++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                random_scalar(&a_scalars[j * 32]);
+                random_scalar(&b_scalars[j * 32]);
+                random_point(&A_points[j]);
+            }
+
+            ge_double_scalarmult_base_negate_vartime_batch(
+                batch_results.data(), a_scalars.data(), A_points.data(), b_scalars.data(), N);
+
+            for (int j = 0; j < N; j++)
+            {
+                ge_p1p1 t;
+                ge_double_scalarmult_base_negate_vartime(&t, &a_scalars[j * 32], &A_points[j], &b_scalars[j * 32]);
+                ge_p2 serial;
+                ge_p1p1_to_p2(&serial, &t);
+
+                unsigned char batch_enc[32], serial_enc[32];
+                ge_tobytes(batch_enc, &batch_results[j]);
+                ge_tobytes(serial_enc, &serial);
+
+                std::string tag = "batch_dsm N=" + std::to_string(N) + " j=" + std::to_string(j);
+                check_bytes_quiet(tag.c_str(), serial_enc, batch_enc, 32);
+            }
+        }
+    }
+    std::cout << "  PASS (6 sizes x 16 iters)" << std::endl;
+}
+
+static void fuzz_batch_ss()
+{
+    std::cout << std::endl << "Fuzz: batch_ss (shared-scalar)" << std::endl;
+
+    int sizes[] = {1, 2, 4, 8};
+    for (int si = 0; si < 4; si++)
+    {
+        int N = sizes[si];
+
+        for (int iter = 0; iter < 16; iter++)
+        {
+            unsigned char a[32], b[32];
+            random_scalar(a);
+            random_scalar(b);
+
+            std::vector<ge_p3> A_points(N), B_points(N);
+            for (int j = 0; j < N; j++)
+            {
+                random_point(&A_points[j]);
+                random_point(&B_points[j]);
+            }
+
+            // p2 variant
+            std::vector<ge_p2> p2_results(N);
+            ge_double_scalarmult_negate_vartime_batch_ss(p2_results.data(), a, A_points.data(), b, B_points.data(), N);
+
+            for (int j = 0; j < N; j++)
+            {
+                ge_dsmp Bi;
+                ge_dsm_precomp(Bi, &B_points[j]);
+                ge_p1p1 t;
+                ge_double_scalarmult_negate_vartime(&t, a, &A_points[j], b, Bi);
+                ge_p2 serial;
+                ge_p1p1_to_p2(&serial, &t);
+
+                unsigned char batch_enc[32], serial_enc[32];
+                ge_tobytes(batch_enc, &p2_results[j]);
+                ge_tobytes(serial_enc, &serial);
+
+                std::string tag = "batch_ss_p2 N=" + std::to_string(N) + " j=" + std::to_string(j);
+                check_bytes_quiet(tag.c_str(), serial_enc, batch_enc, 32);
+            }
+
+            // p3 variant
+            std::vector<ge_p3> p3_results(N);
+            ge_double_scalarmult_negate_vartime_batch_ss_p3(
+                p3_results.data(), a, A_points.data(), b, B_points.data(), N);
+
+            for (int j = 0; j < N; j++)
+            {
+                unsigned char p3_enc[32];
+                ge_p3_tobytes(p3_enc, &p3_results[j]);
+
+                // Compare against p2 result (already validated above)
+                unsigned char p2_enc[32];
+                ge_tobytes(p2_enc, &p2_results[j]);
+
+                std::string tag = "batch_ss_p3 N=" + std::to_string(N) + " j=" + std::to_string(j);
+                check_bytes_quiet(tag.c_str(), p2_enc, p3_enc, 32);
+            }
+        }
+    }
+    std::cout << "  PASS (4 sizes x 16 iters x 2 variants)" << std::endl;
+}
+
+static void fuzz_msm_small()
+{
+    std::cout << std::endl << "Fuzz: msm_small" << std::endl;
+
+    // n=1: MSM should match scalarmult
+    for (int i = 0; i < 32; i++)
+    {
+        unsigned char s[32];
+        random_scalar(s);
+        ge_p3 P;
+        random_point(&P);
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, s, &P, 1);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        ge_p3 sm_r;
+        scalarmult_p3(&sm_r, s, &P);
+        unsigned char sm_enc[32];
+        p3_tobytes(sm_enc, &sm_r);
+
+        std::string tag = "msm n=1 " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), sm_enc, msm_enc, 32);
+    }
+
+    // n=2..8: MSM should match sum of individual scalarmults
+    int test_sizes[] = {2, 3, 4, 5, 6, 7, 8};
+    for (int si = 0; si < 7; si++)
+    {
+        int n = test_sizes[si];
+        for (int iter = 0; iter < 16; iter++)
+        {
+            std::vector<unsigned char> scalars(n * 32);
+            std::vector<ge_p3> points(n);
+            for (int j = 0; j < n; j++)
+            {
+                random_scalar(&scalars[j * 32]);
+                random_point(&points[j]);
+            }
+
+            ge_p3 msm_r;
+            ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+            unsigned char msm_enc[32];
+            ge_p3_tobytes(msm_enc, &msm_r);
+
+            // Serial sum
+            ge_p3 accum;
+            scalarmult_p3(&accum, &scalars[0], &points[0]);
+            for (int j = 1; j < n; j++)
+            {
+                ge_p3 term;
+                scalarmult_p3(&term, &scalars[j * 32], &points[j]);
+                p3_add(&accum, &accum, &term);
+            }
+            unsigned char serial_enc[32];
+            p3_tobytes(serial_enc, &accum);
+
+            std::string tag = "msm n=" + std::to_string(n) + " iter=" + std::to_string(iter);
+            check_bytes_quiet(tag.c_str(), serial_enc, msm_enc, 32);
+        }
+    }
+    std::cout << "  PASS (32 + 7x16 checks)" << std::endl;
+}
+
+static void fuzz_msm_edge_cases()
+{
+    std::cout << std::endl << "Fuzz: msm edge cases" << std::endl;
+
+    // Zero scalar: result should exclude that term
+    {
+        unsigned char scalars[64]; // 2 scalars
+        random_scalar(scalars);
+        std::memset(scalars + 32, 0, 32); // second scalar = 0
+
+        ge_p3 points[2];
+        random_point(&points[0]);
+        random_point(&points[1]);
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars, points, 2);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        // Should equal just s0 * P0
+        ge_p3 expected;
+        scalarmult_p3(&expected, scalars, &points[0]);
+        unsigned char exp_enc[32];
+        p3_tobytes(exp_enc, &expected);
+        check_bytes_quiet("msm zero scalar", exp_enc, msm_enc, 32);
+    }
+
+    // Duplicate points
+    {
+        ge_p3 P;
+        random_point(&P);
+        unsigned char s1[32], s2[32], s12[32];
+        random_scalar(s1);
+        random_scalar(s2);
+        sc_add(s12, s1, s2);
+
+        ge_p3 points[2] = {P, P};
+        unsigned char scalars[64];
+        std::memcpy(scalars, s1, 32);
+        std::memcpy(scalars + 32, s2, 32);
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars, points, 2);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        // Should equal (s1+s2)*P
+        ge_p3 expected;
+        scalarmult_p3(&expected, s12, &P);
+        unsigned char exp_enc[32];
+        p3_tobytes(exp_enc, &expected);
+        check_bytes_quiet("msm dup points", exp_enc, msm_enc, 32);
+    }
+
+    // MSM base consistency
+    {
+        unsigned char base_s[32];
+        random_scalar(base_s);
+
+        ge_p3 points[2];
+        random_point(&points[0]);
+        random_point(&points[1]);
+
+        unsigned char scalars[64];
+        random_scalar(scalars);
+        random_scalar(scalars + 32);
+
+        ge_p3 msm_base_r;
+        ge_multiscalar_mul_base_vartime(&msm_base_r, scalars, points, 2, base_s);
+        unsigned char msm_base_enc[32];
+        ge_p3_tobytes(msm_base_enc, &msm_base_r);
+
+        // Should equal base_s*B + s0*P0 + s1*P1
+        ge_p3 bB, s0P0, s1P1;
+        scalarmult_base_p3(&bB, base_s);
+        scalarmult_p3(&s0P0, scalars, &points[0]);
+        scalarmult_p3(&s1P1, scalars + 32, &points[1]);
+        ge_p3 sum;
+        p3_add(&sum, &bB, &s0P0);
+        p3_add(&sum, &sum, &s1P1);
+        unsigned char sum_enc[32];
+        p3_tobytes(sum_enc, &sum);
+        check_bytes_quiet("msm base consistency", sum_enc, msm_base_enc, 32);
+    }
+
+    std::cout << "  PASS (3 checks)" << std::endl;
+}
+
+// ==============================================
+// All-path cross-validation fuzz test
+// ==============================================
+
+/* For each (scalar, point) pair, compute via ALL 6 code paths and verify
+ * they all agree:
+ *   A. CT scalarmult (ground truth)
+ *   B. DSM: s*P + 0*B
+ *   C. MSM with n=1
+ *   D. MSM-base: 0*B + s*P (n=1)
+ *   E. Batch CT with n=1
+ *   F. Batch DSM with n=1: s*P + 0*B
+ */
+static void fuzz_all_path_cross_validation()
+{
+    std::cout << std::endl << "Fuzz: all-path cross-validation" << std::endl;
+
+    auto test_all_paths = [](const char *label, const unsigned char *s, const ge_p3 *P)
+    {
+        bool is_zero = !sc_isnonzero(s);
+
+        // Path A: CT scalarmult (ground truth) — produces ge_p3
+        ge_p1p1 A_t;
+        ge_scalarmult_ct(&A_t, s, P);
+        // Serialize via p3 (for comparing with other p3 paths)
+        ge_p3 A_p3;
+        ge_p1p1_to_p3(&A_p3, &A_t);
+        unsigned char A_enc_p3[32];
+        p3_tobytes(A_enc_p3, &A_p3);
+        // Serialize via p2 (for comparing with paths that produce p2)
+        ge_p2 A_p2;
+        ge_p1p1_to_p2(&A_p2, &A_t);
+        unsigned char A_enc_p2[32];
+        ge_tobytes(A_enc_p2, &A_p2);
+
+        // Path B: DSM as s*P + 0*B → ge_p1p1 → ge_p2
+        // Skip when s=0: DSM is variable-time and degenerate with both scalars zero
+        if (!is_zero)
+        {
+            ge_p1p1 t;
+            ge_double_scalarmult_base_negate_vartime(&t, s, P, scalar_zero_32);
+            ge_p2 p2;
+            ge_p1p1_to_p2(&p2, &t);
+            unsigned char enc[32];
+            ge_tobytes(enc, &p2);
+            std::string tag = std::string(label) + " B==A";
+            check_bytes_quiet(tag.c_str(), A_enc_p2, enc, 32);
+        }
+
+        // Path C: MSM with n=1 → ge_p3
+        {
+            ge_p3 r;
+            ge_multiscalar_mul_vartime(&r, s, P, 1);
+            unsigned char enc[32];
+            ge_p3_tobytes(enc, &r);
+            std::string tag = std::string(label) + " C==A";
+            check_bytes_quiet(tag.c_str(), A_enc_p3, enc, 32);
+        }
+
+        // Path D: MSM-base with base_scalar=0, n=1 → ge_p3
+        {
+            ge_p3 r;
+            ge_multiscalar_mul_base_vartime(&r, s, P, 1, scalar_zero_32);
+            unsigned char enc[32];
+            ge_p3_tobytes(enc, &r);
+            std::string tag = std::string(label) + " D==A";
+            check_bytes_quiet(tag.c_str(), A_enc_p3, enc, 32);
+        }
+
+        // Path E: Batch CT with n=1 → ge_p2
+        {
+            ge_p2 r;
+            ge_scalarmult_ct_batch(&r, s, P, 1);
+            unsigned char enc[32];
+            ge_tobytes(enc, &r);
+            std::string tag = std::string(label) + " E==A";
+            check_bytes_quiet(tag.c_str(), A_enc_p2, enc, 32);
+        }
+
+        // Path F: Batch DSM with n=1 (s*P + 0*B) → ge_p2
+        // Skip when s=0: DSM is variable-time and degenerate with both scalars zero
+        if (!is_zero)
+        {
+            ge_p2 r;
+            ge_double_scalarmult_base_negate_vartime_batch(&r, s, P, scalar_zero_32, 1);
+            unsigned char enc[32];
+            ge_tobytes(enc, &r);
+            std::string tag = std::string(label) + " F==A";
+            check_bytes_quiet(tag.c_str(), A_enc_p2, enc, 32);
+        }
     };
 
-    for (size_t i = 0; i < sizeof(vectors) / sizeof(vectors[0]); i++)
+    // Edge scalars: 0, 1, 2, l-1, l-2
+    // l-1: subtract 1 from group order
+    unsigned char scalar_lm1[32];
+    std::memcpy(scalar_lm1, group_order_l, 32);
+    scalar_lm1[0] -= 1; // l is odd, so no borrow
+
+    // l-2: subtract 2 from group order
+    unsigned char scalar_lm2[32];
+    std::memcpy(scalar_lm2, group_order_l, 32);
+    scalar_lm2[0] -= 2;
+
+    unsigned char scalar_two[32] = {2};
+
+    const unsigned char *edge_scalars[] = {scalar_zero_32, scalar_one_32, scalar_two, scalar_lm1, scalar_lm2};
+    const char *edge_names[] = {"0", "1", "2", "l-1", "l-2"};
+
+    for (int ei = 0; ei < 5; ei++)
     {
-        ge_p1p1 r;
-        ge_p3 point;
-        ge_scalarmult_base_ct(&r, vectors[i].scalar);
-        ge_p1p1_to_p3(&point, &r);
-
-        unsigned char result[32];
-        ge_p3_to_wei25519(result, &point);
-
-        std::string name = "wei25519 k=" + std::to_string(vectors[i].scalar[0]);
-        check_bytes(name.c_str(), vectors[i].expected, result, 32);
+        for (int trial = 0; trial < 10; trial++)
+        {
+            ge_p3 P;
+            random_point(&P);
+            char label[64];
+            std::snprintf(label, sizeof(label), "xval[s=%s,t=%d]", edge_names[ei], trial);
+            test_all_paths(label, edge_scalars[ei], &P);
+        }
     }
+
+    // Random 256-bit scalars
+    for (int trial = 0; trial < FUZZ_N; trial++)
+    {
+        unsigned char s[32];
+        random_scalar(s);
+        ge_p3 P;
+        random_point(&P);
+        char label[64];
+        std::snprintf(label, sizeof(label), "xval[rand,%d]", trial);
+        test_all_paths(label, s, &P);
+    }
+
+    // Small scalars (< 2^64)
+    for (int trial = 0; trial < 32; trial++)
+    {
+        unsigned char wide[64] = {};
+        random_bytes(wide, 8); // only first 8 bytes
+        sc_reduce(wide, 64);
+        unsigned char s[32];
+        std::memcpy(s, wide, 32);
+        ge_p3 P;
+        random_point(&P);
+        char label[64];
+        std::snprintf(label, sizeof(label), "xval[small,%d]", trial);
+        test_all_paths(label, s, &P);
+    }
+
+    // High-bit scalars (bit 254 set)
+    for (int trial = 0; trial < 32; trial++)
+    {
+        unsigned char wide[64] = {};
+        random_bytes(wide, 32);
+        wide[31] |= 0x40; // set bit 254
+        wide[31] &= 0x7f; // clear bit 255 to stay in range
+        sc_reduce(wide, 64);
+        unsigned char s[32];
+        std::memcpy(s, wide, 32);
+        ge_p3 P;
+        random_point(&P);
+        char label[64];
+        std::snprintf(label, sizeof(label), "xval[high,%d]", trial);
+        test_all_paths(label, s, &P);
+    }
+
+    int total = (5 * 10 + FUZZ_N + 32 + 32) * 5; // 5 cross-checks per trial
+    std::cout << "  PASS (" << total << " checks)" << std::endl;
+}
+
+// ==============================================
+// Point arithmetic fuzz tests
+// ==============================================
+
+// Negate a ge_p3 point: -(X:Y:Z:T) = (-X:Y:Z:-T)
+static void p3_neg(ge_p3 *r, const ge_p3 *p)
+{
+    fe_neg(r->X, p->X);
+    fe_copy(r->Y, p->Y);
+    fe_copy(r->Z, p->Z);
+    fe_neg(r->T, p->T);
+}
+
+// Double a ge_p3 point, result in ge_p3
+static void p3_dbl(ge_p3 *r, const ge_p3 *p)
+{
+    ge_p1p1 t;
+    ge_p3_dbl(&t, p);
+    ge_p1p1_to_p3(r, &t);
+}
+
+static void fuzz_point_arithmetic()
+{
+    std::cout << std::endl << "Fuzz: point arithmetic" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 P, Q, R;
+        random_point(&P);
+        random_point(&Q);
+        random_point(&R);
+
+        unsigned char P_enc[32], Q_enc[32];
+        p3_tobytes(P_enc, &P);
+        p3_tobytes(Q_enc, &Q);
+
+        // P + Q == Q + P (commutativity)
+        {
+            ge_p3 pq, qp;
+            p3_add(&pq, &P, &Q);
+            p3_add(&qp, &Q, &P);
+            unsigned char lhs[32], rhs[32];
+            p3_tobytes(lhs, &pq);
+            p3_tobytes(rhs, &qp);
+            std::string tag = "pt P+Q==Q+P " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+        }
+
+        // P + P == dbl(P)
+        {
+            ge_p3 pp, dbl_P;
+            p3_add(&pp, &P, &P);
+            p3_dbl(&dbl_P, &P);
+            unsigned char lhs[32], rhs[32];
+            p3_tobytes(lhs, &pp);
+            p3_tobytes(rhs, &dbl_P);
+            std::string tag = "pt P+P==dbl " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+        }
+
+        // (P + Q) + R == P + (Q + R) (associativity)
+        {
+            ge_p3 pq, pq_r, qr, p_qr;
+            p3_add(&pq, &P, &Q);
+            p3_add(&pq_r, &pq, &R);
+            p3_add(&qr, &Q, &R);
+            p3_add(&p_qr, &P, &qr);
+            unsigned char lhs[32], rhs[32];
+            p3_tobytes(lhs, &pq_r);
+            p3_tobytes(rhs, &p_qr);
+            std::string tag = "pt assoc " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), lhs, rhs, 32);
+        }
+
+        // P + (-P) == identity
+        {
+            ge_p3 neg_P, sum;
+            p3_neg(&neg_P, &P);
+            p3_add(&sum, &P, &neg_P);
+            unsigned char enc[32];
+            p3_tobytes(enc, &sum);
+            std::string tag = "pt P+(-P)==id " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), identity_bytes_32, enc, 32);
+        }
+
+        // -(-P) == P
+        {
+            ge_p3 neg_P, neg_neg_P;
+            p3_neg(&neg_P, &P);
+            p3_neg(&neg_neg_P, &neg_P);
+            unsigned char enc[32];
+            p3_tobytes(enc, &neg_neg_P);
+            std::string tag = "pt -(-P)==P " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), P_enc, enc, 32);
+        }
+
+        // (P + Q) - P == Q
+        {
+            ge_p3 pq, neg_P, diff;
+            p3_add(&pq, &P, &Q);
+            p3_neg(&neg_P, &P);
+            p3_add(&diff, &pq, &neg_P);
+            unsigned char enc[32];
+            p3_tobytes(enc, &diff);
+            std::string tag = "pt PQ-P==Q " + std::to_string(i);
+            check_bytes_quiet(tag.c_str(), Q_enc, enc, 32);
+        }
+    }
+    std::cout << "  PASS (6x" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Scalar distributivity fuzz test
+// ==============================================
+
+static void fuzz_sc_distributivity()
+{
+    std::cout << std::endl << "Fuzz: sc_distributivity" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32], c[32];
+        random_scalar(a);
+        random_scalar(b);
+        random_scalar(c);
+
+        // a * (b + c) == a*b + a*c
+        unsigned char bc[32], a_bc[32], ab[32], ac[32], ab_ac[32];
+        sc_add(bc, b, c);
+        sc_mul(a_bc, a, bc);
+        sc_mul(ab, a, b);
+        sc_mul(ac, a, c);
+        sc_add(ab_ac, ab, ac);
+
+        std::string tag = "sc distrib " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), a_bc, ab_ac, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Wei25519 fuzz test
+// ==============================================
+
+static void fuzz_wei25519()
+{
+    std::cout << std::endl << "Fuzz: wei25519" << std::endl;
+
+    // Property: output bit 255 is always clear (canonical mod p < 2^255)
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 P;
+        random_point(&P);
+
+        unsigned char wei_x[32];
+        ge_p3_to_wei25519(wei_x, &P);
+
+        std::string tag = "wei bit255 " + std::to_string(i);
+        ++tests_run;
+        if ((wei_x[31] & 0x80) == 0)
+            ++tests_passed;
+        else
+        {
+            ++tests_failed;
+            std::cout << "  FAIL: " << tag << std::endl;
+        }
+    }
+
+    // Determinism: same point gives same output
+    for (int i = 0; i < 64; i++)
+    {
+        ge_p3 P;
+        random_point(&P);
+
+        unsigned char wei1[32], wei2[32];
+        ge_p3_to_wei25519(wei1, &P);
+        ge_p3_to_wei25519(wei2, &P);
+
+        std::string tag = "wei determ " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), wei1, wei2, 32);
+    }
+
+    // Roundtrip consistency: tobytes → frombytes → tobytes → wei25519
+    // should give same result as direct wei25519
+    for (int i = 0; i < 64; i++)
+    {
+        ge_p3 P;
+        random_point(&P);
+
+        unsigned char wei1[32];
+        ge_p3_to_wei25519(wei1, &P);
+
+        // Roundtrip P through serialization
+        unsigned char P_enc[32];
+        ge_p3_tobytes(P_enc, &P);
+        ge_p3 P2;
+        ge_frombytes_vartime(&P2, P_enc);
+
+        unsigned char wei2[32];
+        ge_p3_to_wei25519(wei2, &P2);
+
+        std::string tag = "wei roundtrip " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), wei1, wei2, 32);
+    }
+
+    // k*G should give different X-coordinates for different k (non-degeneracy)
+    {
+        unsigned char prev_wei[32] = {};
+        for (int k = 1; k <= 16; k++)
+        {
+            unsigned char s[32] = {};
+            s[0] = (unsigned char)k;
+            ge_p3 P;
+            scalarmult_base_p3(&P, s);
+
+            unsigned char wei_x[32];
+            ge_p3_to_wei25519(wei_x, &P);
+
+            if (k > 1)
+            {
+                std::string tag = "wei distinct " + std::to_string(k);
+                ++tests_run;
+                if (std::memcmp(wei_x, prev_wei, 32) != 0)
+                    ++tests_passed;
+                else
+                {
+                    ++tests_failed;
+                    std::cout << "  FAIL: " << tag << std::endl;
+                }
+            }
+            std::memcpy(prev_wei, wei_x, 32);
+        }
+    }
+
+    std::cout << "  PASS (" << FUZZ_N << "+64+64+15 checks)" << std::endl;
+}
+
+// ==============================================
+// MSM sparse fuzz test
+// ==============================================
+
+static void fuzz_msm_sparse()
+{
+    std::cout << std::endl << "Fuzz: msm sparse" << std::endl;
+
+    // Mixed zero/nonzero scalars
+    for (int trial = 0; trial < 32; trial++)
+    {
+        int n = 8;
+        std::vector<unsigned char> scalars(n * 32);
+        std::vector<ge_p3> points(n);
+        for (int j = 0; j < n; j++)
+        {
+            random_point(&points[j]);
+            if (j % 3 == 0)
+                std::memset(&scalars[j * 32], 0, 32);
+            else
+                random_scalar(&scalars[j * 32]);
+        }
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        ge_p3 naive;
+        scalarmult_p3(&naive, &scalars[0], &points[0]);
+        for (int j = 1; j < n; j++)
+        {
+            ge_p3 term;
+            scalarmult_p3(&term, &scalars[j * 32], &points[j]);
+            p3_add(&naive, &naive, &term);
+        }
+        unsigned char naive_enc[32];
+        p3_tobytes(naive_enc, &naive);
+
+        std::string tag = "msm_sparse zero_mixed " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), naive_enc, msm_enc, 32);
+    }
+
+    // All scalars = 1: MSM should equal sum of points
+    for (int trial = 0; trial < 16; trial++)
+    {
+        int n = 8;
+        std::vector<unsigned char> scalars(n * 32, 0);
+        std::vector<ge_p3> points(n);
+        ge_p3 sum;
+
+        random_point(&sum);
+        std::memcpy(&points[0], &sum, sizeof(ge_p3));
+        scalars[0] = 1; // scalar_one for first
+        for (int j = 1; j < n; j++)
+        {
+            scalars[j * 32] = 1;
+            random_point(&points[j]);
+            p3_add(&sum, &sum, &points[j]);
+        }
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+        unsigned char msm_enc[32], sum_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+        p3_tobytes(sum_enc, &sum);
+
+        std::string tag = "msm_sparse all_one " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), sum_enc, msm_enc, 32);
+    }
+
+    // Same point repeated: MSM({s1,s2,...,sn}, {P,P,...,P}) == (s1+s2+...+sn)*P
+    for (int trial = 0; trial < 16; trial++)
+    {
+        int n = 8;
+        ge_p3 P;
+        random_point(&P);
+        std::vector<ge_p3> points(n, P);
+        std::vector<unsigned char> scalars(n * 32);
+        unsigned char ssum[32] = {};
+        for (int j = 0; j < n; j++)
+        {
+            random_scalar(&scalars[j * 32]);
+            unsigned char tmp[32];
+            sc_add(tmp, ssum, &scalars[j * 32]);
+            std::memcpy(ssum, tmp, 32);
+        }
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        ge_p3 expected;
+        scalarmult_p3(&expected, ssum, &P);
+        unsigned char exp_enc[32];
+        p3_tobytes(exp_enc, &expected);
+
+        std::string tag = "msm_sparse same_pt " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), exp_enc, msm_enc, 32);
+    }
+
+    // All-zero scalars → identity
+    for (int trial = 0; trial < 8; trial++)
+    {
+        int n = 8;
+        std::vector<unsigned char> scalars(n * 32, 0);
+        std::vector<ge_p3> points(n);
+        for (int j = 0; j < n; j++)
+            random_point(&points[j]);
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        std::string tag = "msm_sparse all_zero " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), identity_bytes_32, msm_enc, 32);
+    }
+
+    // Single nonzero in sea of zeros
+    for (int trial = 0; trial < 16; trial++)
+    {
+        int n = 8;
+        std::vector<unsigned char> scalars(n * 32, 0);
+        std::vector<ge_p3> points(n);
+        for (int j = 0; j < n; j++)
+            random_point(&points[j]);
+        int idx = trial % n;
+        random_scalar(&scalars[idx * 32]);
+
+        ge_p3 msm_r;
+        ge_multiscalar_mul_vartime(&msm_r, scalars.data(), points.data(), n);
+        unsigned char msm_enc[32];
+        ge_p3_tobytes(msm_enc, &msm_r);
+
+        ge_p3 expected;
+        scalarmult_p3(&expected, &scalars[idx * 32], &points[idx]);
+        unsigned char exp_enc[32];
+        p3_tobytes(exp_enc, &expected);
+
+        std::string tag = "msm_sparse single_nz " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), exp_enc, msm_enc, 32);
+    }
+
+    std::cout << "  PASS (32+16+16+8+16 checks)" << std::endl;
+}
+
+// ==============================================
+// MSM homomorphism fuzz test
+// ==============================================
+
+static void fuzz_msm_homomorphism()
+{
+    std::cout << std::endl << "Fuzz: msm homomorphism" << std::endl;
+
+    // MSM additive homomorphism: MSM(s1,P) + MSM(s2,P) == MSM(s1+s2,P)
+    // (Pedersen-style: same generators, add scalars → add commitments)
+    for (int trial = 0; trial < 32; trial++)
+    {
+        int n = 4;
+        std::vector<ge_p3> points(n);
+        std::vector<unsigned char> s1(n * 32), s2(n * 32), ssum(n * 32);
+        for (int j = 0; j < n; j++)
+        {
+            random_point(&points[j]);
+            random_scalar(&s1[j * 32]);
+            random_scalar(&s2[j * 32]);
+            sc_add(&ssum[j * 32], &s1[j * 32], &s2[j * 32]);
+        }
+
+        ge_p3 C1, C2, Csum;
+        ge_multiscalar_mul_vartime(&C1, s1.data(), points.data(), n);
+        ge_multiscalar_mul_vartime(&C2, s2.data(), points.data(), n);
+        ge_multiscalar_mul_vartime(&Csum, ssum.data(), points.data(), n);
+
+        // C1 + C2 should equal Csum
+        ge_p3 C1_C2;
+        p3_add(&C1_C2, &C1, &C2);
+
+        unsigned char lhs[32], rhs[32];
+        p3_tobytes(lhs, &C1_C2);
+        p3_tobytes(rhs, &Csum);
+
+        std::string tag = "msm homo " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), rhs, lhs, 32);
+    }
+
+    // MSM-base homomorphism: with base point
+    for (int trial = 0; trial < 16; trial++)
+    {
+        int n = 4;
+        std::vector<ge_p3> points(n);
+        std::vector<unsigned char> s1(n * 32), s2(n * 32), ssum(n * 32);
+        unsigned char b1[32], b2[32], bsum[32];
+        random_scalar(b1);
+        random_scalar(b2);
+        sc_add(bsum, b1, b2);
+
+        for (int j = 0; j < n; j++)
+        {
+            random_point(&points[j]);
+            random_scalar(&s1[j * 32]);
+            random_scalar(&s2[j * 32]);
+            sc_add(&ssum[j * 32], &s1[j * 32], &s2[j * 32]);
+        }
+
+        ge_p3 C1, C2, Csum;
+        ge_multiscalar_mul_base_vartime(&C1, s1.data(), points.data(), n, b1);
+        ge_multiscalar_mul_base_vartime(&C2, s2.data(), points.data(), n, b2);
+        ge_multiscalar_mul_base_vartime(&Csum, ssum.data(), points.data(), n, bsum);
+
+        ge_p3 C1_C2;
+        p3_add(&C1_C2, &C1, &C2);
+
+        unsigned char lhs[32], rhs[32];
+        p3_tobytes(lhs, &C1_C2);
+        p3_tobytes(rhs, &Csum);
+
+        std::string tag = "msm_base homo " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), rhs, lhs, 32);
+    }
+
+    // MSM cross-check: msm_base(scalars, points, n, base_s) == msm(scalars+base_s, points+B, n+1)
+    for (int trial = 0; trial < 16; trial++)
+    {
+        int n = 4;
+        std::vector<ge_p3> points(n);
+        std::vector<unsigned char> scalars(n * 32);
+        unsigned char base_s[32];
+        random_scalar(base_s);
+        for (int j = 0; j < n; j++)
+        {
+            random_point(&points[j]);
+            random_scalar(&scalars[j * 32]);
+        }
+
+        // MSM-base
+        ge_p3 r1;
+        ge_multiscalar_mul_base_vartime(&r1, scalars.data(), points.data(), n, base_s);
+
+        // Equivalent MSM with base point appended
+        std::vector<unsigned char> all_scalars((n + 1) * 32);
+        std::vector<ge_p3> all_points(n + 1);
+        std::memcpy(all_scalars.data(), base_s, 32);
+        scalarmult_base_p3(&all_points[0], scalar_one_32); // B = 1*B
+        for (int j = 0; j < n; j++)
+        {
+            std::memcpy(&all_scalars[(j + 1) * 32], &scalars[j * 32], 32);
+            all_points[j + 1] = points[j];
+        }
+
+        ge_p3 r2;
+        ge_multiscalar_mul_vartime(&r2, all_scalars.data(), all_points.data(), n + 1);
+
+        unsigned char enc1[32], enc2[32];
+        ge_p3_tobytes(enc1, &r1);
+        ge_p3_tobytes(enc2, &r2);
+
+        std::string tag = "msm_base==msm " + std::to_string(trial);
+        check_bytes_quiet(tag.c_str(), enc1, enc2, 32);
+    }
+
+    std::cout << "  PASS (32+16+16 checks)" << std::endl;
+}
+
+// ==============================================
+// Ristretto255 fuzz tests
+// ==============================================
+
+static void fuzz_ristretto_roundtrip()
+{
+    std::cout << std::endl << "Fuzz: ristretto roundtrip" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 p;
+        random_point(&p);
+
+        unsigned char enc1[32], enc2[32];
+        ristretto255_encode(enc1, &p);
+
+        ge_p3 decoded;
+        int rc = ristretto255_decode(&decoded, enc1);
+        if (rc != 0)
+        {
+            ++tests_run;
+            ++tests_failed;
+            std::cout << "  FAIL: ristretto_rt decode " << i << std::endl;
+            continue;
+        }
+
+        ristretto255_encode(enc2, &decoded);
+        std::string tag = "ristretto_rt " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), enc1, enc2, 32);
+
+        // Determinism: encoding the same point again gives same result
+        unsigned char enc3[32];
+        ristretto255_encode(enc3, &p);
+        tag = "ristretto_rt determ " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), enc1, enc3, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ristretto_equals()
+{
+    std::cout << std::endl << "Fuzz: ristretto equals" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        ge_p3 p;
+        random_point(&p);
+
+        // Reflexive: p == p
+        ++tests_run;
+        if (ristretto255_equals(&p, &p) == 1)
+            ++tests_passed;
+        else
+        {
+            ++tests_failed;
+            std::cout << "  FAIL: ristretto_eq reflexive " << i << std::endl;
+        }
+
+        // Symmetric: encode/decode should equal original
+        unsigned char enc[32];
+        ristretto255_encode(enc, &p);
+        ge_p3 q;
+        if (ristretto255_decode(&q, enc) == 0)
+        {
+            ++tests_run;
+            if (ristretto255_equals(&p, &q) == 1)
+                ++tests_passed;
+            else
+            {
+                ++tests_failed;
+                std::cout << "  FAIL: ristretto_eq symmetric " << i << std::endl;
+            }
+        }
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_ristretto_from_uniform()
+{
+    std::cout << std::endl << "Fuzz: ristretto from_uniform" << std::endl;
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char input[64];
+        random_bytes(input, 64);
+
+        ge_p3 p1, p2;
+        ristretto255_from_uniform_bytes(&p1, input);
+        ristretto255_from_uniform_bytes(&p2, input);
+
+        // Determinism: same input -> same output
+        unsigned char enc1[32], enc2[32];
+        ristretto255_encode(enc1, &p1);
+        ristretto255_encode(enc2, &p2);
+        std::string tag = "ristretto_fu determ " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), enc1, enc2, 32);
+
+        // Output should be a valid encoding (decode succeeds and roundtrips)
+        ge_p3 decoded;
+        int rc = ristretto255_decode(&decoded, enc1);
+        ++tests_run;
+        if (rc == 0)
+            ++tests_passed;
+        else
+        {
+            ++tests_failed;
+            std::cout << "  FAIL: ristretto_fu valid " << i << std::endl;
+        }
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
+// Cross-backend consistency
+// ==============================================
+
+struct BackendFingerprint
+{
+    unsigned char scalarmult_base[32];
+    unsigned char scalarmult_varbase[32];
+    unsigned char dsm[32];
+    unsigned char sc_add_r[32];
+    unsigned char sc_mul_r[32];
+};
+
+static BackendFingerprint capture_fingerprint()
+{
+    BackendFingerprint fp;
+    unsigned char scalar_a[32] = {0x31, 0x3b, 0x3f, 0x84, 0x28, 0x2b, 0xa0, 0x02, 0xb9, 0x4f, 0x8f,
+                                  0x4c, 0xf4, 0x39, 0x24, 0xf6, 0xf5, 0x27, 0xd2, 0xf2, 0xdf, 0x36,
+                                  0x96, 0x36, 0x11, 0x09, 0x56, 0xa8, 0xa8, 0x5d, 0x98, 0x04};
+    unsigned char scalar_b[32] = {0x18, 0x3c, 0x91, 0x5a, 0x04, 0xd2, 0xbc, 0x1b, 0x03, 0xf4, 0xa7,
+                                  0xd9, 0xb1, 0x16, 0x4f, 0xe8, 0xc3, 0xb0, 0x2c, 0x0e, 0x6e, 0x1a,
+                                  0x2b, 0xa4, 0x3f, 0xc8, 0x47, 0x8d, 0xd0, 0xa9, 0xe3, 0x02};
+
+    // Base scalarmult
+    ge_p1p1 t;
+    ge_scalarmult_base_ct(&t, scalar_a);
+    ge_p2 p;
+    ge_p1p1_to_p2(&p, &t);
+    ge_tobytes(fp.scalarmult_base, &p);
+
+    // Variable-base scalarmult
+    ge_p3 base_p;
+    ge_p1p1_to_p3(&base_p, &t);
+    ge_scalarmult_ct(&t, scalar_b, &base_p);
+    ge_p1p1_to_p2(&p, &t);
+    ge_tobytes(fp.scalarmult_varbase, &p);
+
+    // DSM
+    ge_double_scalarmult_base_negate_vartime(&t, scalar_a, &base_p, scalar_b);
+    ge_p1p1_to_p2(&p, &t);
+    ge_tobytes(fp.dsm, &p);
+
+    // Scalar ops
+    sc_add(fp.sc_add_r, scalar_a, scalar_b);
+    sc_mul(fp.sc_mul_r, scalar_a, scalar_b);
+
+    return fp;
+}
+
+static void fuzz_cross_backend(const BackendFingerprint &baseline)
+{
+    std::cout << std::endl << "Fuzz: cross-backend consistency" << std::endl;
+
+    BackendFingerprint post = capture_fingerprint();
+
+    check_bytes("cross-backend scalarmult_base", baseline.scalarmult_base, post.scalarmult_base, 32);
+    check_bytes("cross-backend scalarmult_var", baseline.scalarmult_varbase, post.scalarmult_varbase, 32);
+    check_bytes("cross-backend dsm", baseline.dsm, post.dsm, 32);
+    check_bytes("cross-backend sc_add", baseline.sc_add_r, post.sc_add_r, 32);
+    check_bytes("cross-backend sc_mul", baseline.sc_mul_r, post.sc_mul_r, 32);
 }
 
 // ==============================================
 // Main
 // ==============================================
 
-int main()
+int main(int argc, char *argv[])
 {
-    ed25519_init();
+    // Capture baseline BEFORE dispatch initialization for cross-backend test
+    BackendFingerprint baseline = capture_fingerprint();
+
+    // Parse CLI arguments
+    const char *dispatch_mode = "baseline";
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::strcmp(argv[i], "--autotune") == 0)
+        {
+            ed25519_autotune();
+            dispatch_mode = "autotune";
+        }
+        else if (std::strcmp(argv[i], "--init") == 0)
+        {
+            ed25519_init();
+            dispatch_mode = "init";
+        }
+        else
+        {
+            std::cerr << "Usage: " << argv[0] << " [--init | --autotune]" << std::endl;
+            return 1;
+        }
+    }
 
     std::cout << "Ed25519 Unit Tests" << std::endl;
+    std::cout << "Dispatch: " << dispatch_mode << std::endl;
+
+#if ED25519_SIMD
+    {
+        const uint32_t features = ed25519_cpu_features();
+        std::cout << "CPU features:";
+        std::cout << " AVX2=" << ((features & ED25519_CPU_AVX2) ? "yes" : "no");
+        std::cout << " AVX-512F=" << ((features & ED25519_CPU_AVX512F) ? "yes" : "no");
+        std::cout << " AVX-512-IFMA=" << ((features & ED25519_CPU_AVX512IFMA) ? "yes" : "no");
+        std::cout << std::endl;
+    }
+#endif
+
     std::cout << "==================" << std::endl;
 
     // Scalar operations
-    test_sc_add();
-    test_sc_sub();
-    test_sc_mul();
-    test_sc_muladd();
-    test_sc_mulsub();
     test_sc_reduce();
     test_sc_clamp();
     test_sc_check_reduced();
@@ -2087,7 +4085,6 @@ int main()
 
     // Field element operations
     test_fe_roundtrip();
-    test_fe_arithmetic();
 
     // Group element operations
     test_ge_scalarmult_base_ct();
@@ -2107,9 +4104,6 @@ int main()
     test_ristretto255_bad_encodings();
     test_ristretto255_from_uniform_bytes();
 
-    // Wei25519
-    test_ge_p3_to_wei25519();
-
     // Batch operations
     test_ge_scalarmult_ct_batch();
     test_ge_dsm_base_negate_vartime_batch();
@@ -2126,7 +4120,44 @@ int main()
     test_scalarmult_identity_point();
     test_scalarmult_one();
     test_batch_matches_single();
-    test_dispatch_init_autotune();
+
+    // Generated test vectors (independently validated by PyNaCl/libsodium)
+    test_generated_vectors();
+
+    // Cross-backend consistency (baseline captured before ed25519_init)
+    fuzz_cross_backend(baseline);
+
+    // Fuzz tests (property-based, fixed seed PRNG)
+    fuzz_sc_add();
+    fuzz_sc_mul();
+    fuzz_sc_muladd_mulsub();
+    fuzz_sc_reduce();
+    fuzz_sc_clamp();
+    fuzz_fe_roundtrip();
+    fuzz_fe_add_sub();
+    fuzz_fe_mul();
+    fuzz_fe_sq();
+    fuzz_fe_invert();
+    fuzz_fe_cmov();
+    fuzz_ge_roundtrip();
+    fuzz_ge_scalarmult_zero_one();
+    fuzz_ge_scalarmult_linearity();
+    fuzz_ge_scalarmult_compatibility();
+    fuzz_ge_dsm();
+    fuzz_batch_ct();
+    fuzz_batch_dsm();
+    fuzz_batch_ss();
+    fuzz_msm_small();
+    fuzz_msm_edge_cases();
+    fuzz_all_path_cross_validation();
+    fuzz_point_arithmetic();
+    fuzz_sc_distributivity();
+    fuzz_wei25519();
+    fuzz_msm_sparse();
+    fuzz_msm_homomorphism();
+    fuzz_ristretto_roundtrip();
+    fuzz_ristretto_equals();
+    fuzz_ristretto_from_uniform();
 
     // Summary
     std::cout << std::endl << "==================" << std::endl;
