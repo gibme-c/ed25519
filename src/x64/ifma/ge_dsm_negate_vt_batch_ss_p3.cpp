@@ -35,6 +35,7 @@ For more information, please refer to <http://unlicense.org/>
  * multiply per point but saving the caller ~260 field ops of ge_p2_to_p3.
  */
 
+#include "ed25519_secure_erase.h"
 #include "ge.h"
 #include "ge_add.h"
 #include "ge_p1p1_to_p2.h"
@@ -202,5 +203,11 @@ void ge_dsm_negate_vt_batch_ss_p3_ifma(
 
         for (size_t k = 0; k < n; k++)
             ge_p3_8x_extract(&results[batch + k], &final_p3, (int)k);
+
+        ed25519_secure_erase(Ai, sizeof(Ai));
+        ed25519_secure_erase(Bi, sizeof(Bi));
     }
+
+    ed25519_secure_erase(ae, sizeof(ae));
+    ed25519_secure_erase(be, sizeof(be));
 }

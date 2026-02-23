@@ -305,7 +305,8 @@ int ristretto255_decode(ge_p3 *p, const unsigned char *s)
     fe_mul(t, x, y);
 
     // 7. Reject if !was_square || IS_NEGATIVE(t) || y == 0
-    if (!was_square || fe_isnegative(t) || !fe_isnonzero(y))
+    // Use bitwise OR to prevent short-circuit timing variation (CT discipline)
+    if ((!was_square) | fe_isnegative(t) | (!fe_isnonzero(y)))
         return -1;
 
     // 8. Return (x, y, 1, t)

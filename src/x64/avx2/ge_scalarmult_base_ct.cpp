@@ -283,6 +283,7 @@ void ge_scalarmult_base_ct_avx2(ge_p1p1 *r, const unsigned char *a)
     ge_p1p1_10_to_fe51(r, &r10);
 
     ed25519_secure_erase(e, sizeof(e));
+    ed25519_secure_erase(&carry, sizeof(carry));
     ed25519_secure_erase(&s, sizeof(s));
     ed25519_secure_erase(&t, sizeof(t));
     ed25519_secure_erase(&t10, sizeof(t10));
@@ -319,6 +320,7 @@ void ge_scalarmult_base_ct_avx2(ge_p1p1 *r, const unsigned char *a)
     }
 
     ed25519_secure_erase(e, sizeof(e));
+    ed25519_secure_erase(&carry, sizeof(carry));
     ed25519_secure_erase(&s, sizeof(s));
     ed25519_secure_erase(&t, sizeof(t));
     ed25519_secure_erase(&h, sizeof(h));

@@ -38,6 +38,7 @@ For more information, please refer to <http://unlicense.org/>
  * negate) instead of scanning all 8 table entries with conditional moves.
  */
 
+#include "ed25519_secure_erase.h"
 #include "ge.h"
 #include "ge_add.h"
 #include "ge_p1p1_to_p2.h"
@@ -182,5 +183,11 @@ void ge_dsm_negate_vt_batch_ss_avx2(
 
         for (size_t k = 0; k < n; k++)
             ge_p2_4x_extract(&results[batch + k], &r, (int)k);
+
+        ed25519_secure_erase(Ai, sizeof(Ai));
+        ed25519_secure_erase(Bi, sizeof(Bi));
     }
+
+    ed25519_secure_erase(ae, sizeof(ae));
+    ed25519_secure_erase(be, sizeof(be));
 }

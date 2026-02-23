@@ -190,6 +190,7 @@ void ge_scalarmult_base_ct_ifma(ge_p1p1 *r, const unsigned char *a)
     }
 
     ed25519_secure_erase(e, sizeof(e));
+    ed25519_secure_erase(&carry, sizeof(carry));
     ed25519_secure_erase(&s, sizeof(s));
     ed25519_secure_erase(&t, sizeof(t));
     ed25519_secure_erase(&h, sizeof(h));

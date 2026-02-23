@@ -28,6 +28,9 @@ For more information, please refer to <http://unlicense.org/>
 #include "ed25519_secure_erase.h"
 
 #ifdef _MSC_VER
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #elif defined(__STDC_LIB_EXT1__)
 #define ED25519_HAS_MEMSET_S 1

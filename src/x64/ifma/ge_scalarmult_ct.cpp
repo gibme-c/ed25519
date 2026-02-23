@@ -178,6 +178,8 @@ void ge_scalarmult_ifma_ct(ge_p1p1 *t, const unsigned char *a, const ge_p3 *A)
     }
 
     ed25519_secure_erase(e, sizeof(e));
+    ed25519_secure_erase(&carry, sizeof(carry));
+    ed25519_secure_erase(&carry2, sizeof(carry2));
     ed25519_secure_erase(Ai, sizeof(Ai));
     ed25519_secure_erase(&u, sizeof(u));
     ed25519_secure_erase(&r, sizeof(r));

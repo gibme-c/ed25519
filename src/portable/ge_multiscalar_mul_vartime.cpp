@@ -33,6 +33,7 @@ For more information, please refer to <http://unlicense.org/>
 #include "ed25519_platform.h"
 #if !ED25519_PLATFORM_64BIT
 
+#include "ed25519_secure_erase.h"
 #include "fe_copy.h"
 #include "fe_neg.h"
 #include "ge_add.h"
@@ -173,6 +174,9 @@ static void msm_straus(ge_p3 *result, const unsigned char *scalars, const ge_p3 
 
     // u holds the final result as ge_p3 from the last iteration
     *result = u;
+
+    ed25519_secure_erase(all_digits.data(), all_digits.size() * sizeof(all_digits[0]));
+    ed25519_secure_erase(tables.data(), tables.size() * sizeof(tables[0]));
 }
 
 // ============================================================================
@@ -324,9 +328,13 @@ static void msm_pippenger(ge_p3 *result, const unsigned char *scalars, const ge_
             ge_add(&t, &total, &cached);
             ge_p1p1_to_p3(&total, &t);
         }
+
+        ed25519_secure_erase(bucket_points.data(), bucket_points.size() * sizeof(bucket_points[0]));
     }
 
     *result = total;
+
+    ed25519_secure_erase(all_digits.data(), all_digits.size() * sizeof(all_digits[0]));
 }
 
 // ============================================================================
@@ -364,6 +372,7 @@ void ge_msm_base_vartime_portable(
     ge_p3 base_result;
     ge_scalarmult_base_ct(&base_tmp, base_scalar);
     ge_p1p1_to_p3(&base_result, &base_tmp);
+    ed25519_secure_erase(&base_tmp, sizeof(base_tmp));
 
     if (n == 0)
     {

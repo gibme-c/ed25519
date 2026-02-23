@@ -34,6 +34,7 @@ For more information, please refer to <http://unlicense.org/>
  * ge_cached_8x. Zero-digit lanes are handled via blending.
  */
 
+#include "ed25519_secure_erase.h"
 #include "ge.h"
 #include "ge_add.h"
 #include "ge_p1p1_to_p2.h"
@@ -241,5 +242,12 @@ void ge_dsm_base_negate_vt_batch_ifma(
 
         for (size_t k = 0; k < n; k++)
             ge_p2_8x_extract(&results[batch + k], &r, (int)k);
+
+        ed25519_secure_erase(ae, sizeof(ae));
+        ed25519_secure_erase(be, sizeof(be));
+        ed25519_secure_erase(Ai, sizeof(Ai));
     }
+
+    ed25519_secure_erase(Bi_scalar, sizeof(Bi_scalar));
+    ed25519_secure_erase(Bi_8x, sizeof(Bi_8x));
 }

@@ -40,6 +40,7 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge_multiscalar_mul_vartime.h"
 
+#include "ed25519_secure_erase.h"
 #include "ge_add.h"
 #include "ge_p1p1_to_p2.h"
 #include "ge_p1p1_to_p3.h"
@@ -199,6 +200,9 @@ static void msm_straus_avx2(ge_p3 *result, const unsigned char *scalars, const g
         ge_add(&t, result, &cached);
         ge_p1p1_to_p3(result, &t);
     }
+
+    ed25519_secure_erase(all_digits.data(), all_digits.size() * sizeof(all_digits[0]));
+    ed25519_secure_erase(tables.data(), tables.size() * sizeof(tables[0]));
 }
 
 // ============================================================================
@@ -235,6 +239,7 @@ void ge_msm_base_vartime_avx2(
     ge_p3 base_result;
     ge_scalarmult_base_ct(&base_tmp, base_scalar);
     ge_p1p1_to_p3(&base_result, &base_tmp);
+    ed25519_secure_erase(&base_tmp, sizeof(base_tmp));
 
     if (n == 0)
     {

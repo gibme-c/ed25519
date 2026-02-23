@@ -39,6 +39,7 @@ For more information, please refer to <http://unlicense.org/>
 #if ED25519_SIMD
 
 #include "ed25519_cpuid.h"
+#include "ed25519_secure_erase.h"
 #include "ge_dsm_precomp.h"
 #include "ge_p1p1_to_p2.h"
 #include "ge_p1p1_to_p3.h"
@@ -191,6 +192,7 @@ static ed25519_dispatch_table dispatch_table = {
 
 const ed25519_dispatch_table &ed25519_get_dispatch()
 {
+    std::atomic_thread_fence(std::memory_order_acquire);
     return dispatch_table;
 }
 
@@ -204,17 +206,21 @@ void ed25519_init(void)
     bool expected = false;
     if (init_done.compare_exchange_strong(expected, true))
     {
-        // Reset to x64 baseline
-        dispatch_table.scalarmult_ct = ge_scalarmult_x64_ct;
-        dispatch_table.scalarmult_base_ct = ge_scalarmult_base_ct_x64;
-        dispatch_table.dsm_base_negate_vt = ge_double_scalarmult_base_negate_vartime_x64;
-        dispatch_table.dsm_negate_vt = ge_double_scalarmult_negate_vartime_x64;
-        dispatch_table.scalarmult_ct_batch = ge_scalarmult_ct_batch_x64;
-        dispatch_table.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_x64;
-        dispatch_table.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_x64;
-        dispatch_table.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_x64;
-        dispatch_table.msm_vartime = ge_msm_vartime_x64;
-        dispatch_table.msm_base_vartime = ge_msm_base_vartime_x64;
+        // Build the complete dispatch table in a local variable, then assign
+        // as a single struct copy. This avoids a data race where another thread
+        // could read a partially-updated global table via ed25519_get_dispatch().
+        ed25519_dispatch_table tbl = {
+            ge_scalarmult_x64_ct,
+            ge_scalarmult_base_ct_x64,
+            ge_double_scalarmult_base_negate_vartime_x64,
+            ge_double_scalarmult_negate_vartime_x64,
+            ge_scalarmult_ct_batch_x64,
+            ge_dsm_base_negate_vt_batch_x64,
+            ge_dsm_negate_vt_batch_ss_x64,
+            ge_dsm_negate_vt_batch_ss_p3_x64,
+            ge_msm_vartime_x64,
+            ge_msm_base_vartime_x64,
+        };
 
         const uint32_t features = ed25519_cpu_features();
 
@@ -224,36 +230,38 @@ void ed25519_init(void)
 #if !ED25519_NO_AVX512
         if (features & ED25519_CPU_AVX512IFMA)
         {
-            dispatch_table.scalarmult_ct = ge_scalarmult_ifma_ct;
-            dispatch_table.scalarmult_base_ct = ge_scalarmult_base_ct_ifma;
-            dispatch_table.dsm_base_negate_vt = ge_double_scalarmult_base_negate_vartime_ifma;
-            dispatch_table.dsm_negate_vt = ge_double_scalarmult_negate_vartime_ifma;
-            dispatch_table.scalarmult_ct_batch = ge_scalarmult_ct_batch_ifma;
-            dispatch_table.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_ifma;
-            dispatch_table.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_ifma;
-            dispatch_table.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_ifma;
-            dispatch_table.msm_vartime = ge_msm_vartime_ifma;
-            dispatch_table.msm_base_vartime = ge_msm_base_vartime_ifma;
-            return;
+            tbl.scalarmult_ct = ge_scalarmult_ifma_ct;
+            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_ifma;
+            tbl.dsm_base_negate_vt = ge_double_scalarmult_base_negate_vartime_ifma;
+            tbl.dsm_negate_vt = ge_double_scalarmult_negate_vartime_ifma;
+            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_ifma;
+            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_ifma;
+            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_ifma;
+            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_ifma;
+            tbl.msm_vartime = ge_msm_vartime_ifma;
+            tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
         }
+        else
 #endif
-
         // AVX2 available for CT functions and batch operations.
 #if !ED25519_NO_AVX2
         if (features & ED25519_CPU_AVX2)
         {
-            dispatch_table.scalarmult_ct = ge_scalarmult_avx2_ct;
-            dispatch_table.scalarmult_base_ct = ge_scalarmult_base_ct_avx2;
-            dispatch_table.scalarmult_ct_batch = ge_scalarmult_ct_batch_avx2;
-            dispatch_table.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_avx2;
-            dispatch_table.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_avx2;
-            dispatch_table.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_avx2;
-            dispatch_table.msm_vartime = ge_msm_vartime_avx2;
-            dispatch_table.msm_base_vartime = ge_msm_base_vartime_avx2;
+            tbl.scalarmult_ct = ge_scalarmult_avx2_ct;
+            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_avx2;
+            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_avx2;
+            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_avx2;
+            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_avx2;
+            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_avx2;
+            tbl.msm_vartime = ge_msm_vartime_avx2;
+            tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
         }
 #endif
 
         (void)features;
+
+        dispatch_table = tbl;
+        std::atomic_thread_fence(std::memory_order_release);
     }
 }
 
@@ -474,6 +482,10 @@ void ed25519_autotune(void)
     bool expected = false;
     if (autotune_done.compare_exchange_strong(expected, true))
     {
+        // Build the complete dispatch table in a local variable, then assign
+        // as a single struct copy with a release fence.
+        ed25519_dispatch_table tbl = dispatch_table;
+
         const uint32_t features = ed25519_cpu_features();
 
         // Generate test inputs using x64 baseline (avoids circular dispatch dependency)
@@ -497,7 +509,7 @@ void ed25519_autotune(void)
         // ── ge_scalarmult_ct ──
         {
             int64_t best_time = bench_scalarmult_ct(ge_scalarmult_x64_ct, s1, &test_point);
-            decltype(dispatch_table.scalarmult_ct) best_fn = ge_scalarmult_x64_ct;
+            decltype(tbl.scalarmult_ct) best_fn = ge_scalarmult_x64_ct;
 
 #if !ED25519_NO_AVX2
             if (features & ED25519_CPU_AVX2)
@@ -521,13 +533,13 @@ void ed25519_autotune(void)
                 }
             }
 #endif
-            dispatch_table.scalarmult_ct = best_fn;
+            tbl.scalarmult_ct = best_fn;
         }
 
         // ── ge_scalarmult_base_ct ──
         {
             int64_t best_time = bench_scalarmult_base_ct(ge_scalarmult_base_ct_x64, s1);
-            decltype(dispatch_table.scalarmult_base_ct) best_fn = ge_scalarmult_base_ct_x64;
+            decltype(tbl.scalarmult_base_ct) best_fn = ge_scalarmult_base_ct_x64;
 
 #if !ED25519_NO_AVX2
             if (features & ED25519_CPU_AVX2)
@@ -551,14 +563,14 @@ void ed25519_autotune(void)
                 }
             }
 #endif
-            dispatch_table.scalarmult_base_ct = best_fn;
+            tbl.scalarmult_base_ct = best_fn;
         }
 
         // ── ge_double_scalarmult_base_negate_vartime ──
         {
             int64_t best_time =
                 bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_x64, s1, &test_point, s2);
-            decltype(dispatch_table.dsm_base_negate_vt) best_fn = ge_double_scalarmult_base_negate_vartime_x64;
+            decltype(tbl.dsm_base_negate_vt) best_fn = ge_double_scalarmult_base_negate_vartime_x64;
             (void)best_time;
 
 #if !ED25519_NO_AVX512
@@ -572,14 +584,14 @@ void ed25519_autotune(void)
                 }
             }
 #endif
-            dispatch_table.dsm_base_negate_vt = best_fn;
+            tbl.dsm_base_negate_vt = best_fn;
         }
 
         // ── ge_double_scalarmult_negate_vartime ──
         {
             int64_t best_time =
                 bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_x64, s1, &test_point, s2, test_dsmp);
-            decltype(dispatch_table.dsm_negate_vt) best_fn = ge_double_scalarmult_negate_vartime_x64;
+            decltype(tbl.dsm_negate_vt) best_fn = ge_double_scalarmult_negate_vartime_x64;
             (void)best_time;
 
 #if !ED25519_NO_AVX512
@@ -593,7 +605,7 @@ void ed25519_autotune(void)
                 }
             }
 #endif
-            dispatch_table.dsm_negate_vt = best_fn;
+            tbl.dsm_negate_vt = best_fn;
         }
 
         // ── Batch operations: ge_scalarmult_ct_batch ──
@@ -613,7 +625,7 @@ void ed25519_autotune(void)
 
             int64_t best_time =
                 bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_x64, batch_scalars, batch_points, BATCH_N);
-            decltype(dispatch_table.scalarmult_ct_batch) best_fn = ge_scalarmult_ct_batch_x64;
+            decltype(tbl.scalarmult_ct_batch) best_fn = ge_scalarmult_ct_batch_x64;
 
 #if !ED25519_NO_AVX2
             if (features & ED25519_CPU_AVX2)
@@ -637,7 +649,7 @@ void ed25519_autotune(void)
                 }
             }
 #endif
-            dispatch_table.scalarmult_ct_batch = best_fn;
+            tbl.scalarmult_ct_batch = best_fn;
 
             // ── Batch DSM ──
             {
@@ -651,7 +663,7 @@ void ed25519_autotune(void)
 
                 int64_t best_time2 = bench_dsm_base_negate_vt_batch(
                     ge_dsm_base_negate_vt_batch_x64, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
-                decltype(dispatch_table.dsm_base_negate_vt_batch) best_fn2 = ge_dsm_base_negate_vt_batch_x64;
+                decltype(tbl.dsm_base_negate_vt_batch) best_fn2 = ge_dsm_base_negate_vt_batch_x64;
 
 #if !ED25519_NO_AVX2
                 if (features & ED25519_CPU_AVX2)
@@ -677,7 +689,9 @@ void ed25519_autotune(void)
                     }
                 }
 #endif
-                dispatch_table.dsm_base_negate_vt_batch = best_fn2;
+                tbl.dsm_base_negate_vt_batch = best_fn2;
+
+                ed25519_secure_erase(batch_b_scalars, sizeof(batch_b_scalars));
             }
 
             // ── Batch DSM shared-scalar ──
@@ -685,7 +699,7 @@ void ed25519_autotune(void)
                 // Reuse batch_points as both A and B points for tuning
                 int64_t best_time3 = bench_dsm_negate_vt_batch_ss(
                     ge_dsm_negate_vt_batch_ss_x64, s1, batch_points, s2, batch_points, BATCH_N);
-                decltype(dispatch_table.dsm_negate_vt_batch_ss) best_fn3 = ge_dsm_negate_vt_batch_ss_x64;
+                decltype(tbl.dsm_negate_vt_batch_ss) best_fn3 = ge_dsm_negate_vt_batch_ss_x64;
 
 #if !ED25519_NO_AVX2
                 if (features & ED25519_CPU_AVX2)
@@ -711,14 +725,14 @@ void ed25519_autotune(void)
                     }
                 }
 #endif
-                dispatch_table.dsm_negate_vt_batch_ss = best_fn3;
+                tbl.dsm_negate_vt_batch_ss = best_fn3;
             }
 
             // ── Batch DSM shared-scalar p3 ──
             {
                 int64_t best_time4 = bench_dsm_negate_vt_batch_ss_p3(
                     ge_dsm_negate_vt_batch_ss_p3_x64, s1, batch_points, s2, batch_points, BATCH_N);
-                decltype(dispatch_table.dsm_negate_vt_batch_ss_p3) best_fn4 = ge_dsm_negate_vt_batch_ss_p3_x64;
+                decltype(tbl.dsm_negate_vt_batch_ss_p3) best_fn4 = ge_dsm_negate_vt_batch_ss_p3_x64;
 
 #if !ED25519_NO_AVX2
                 if (features & ED25519_CPU_AVX2)
@@ -744,14 +758,14 @@ void ed25519_autotune(void)
                     }
                 }
 #endif
-                dispatch_table.dsm_negate_vt_batch_ss_p3 = best_fn4;
+                tbl.dsm_negate_vt_batch_ss_p3 = best_fn4;
             }
 
             // ── MSM (multi-scalar multiplication) ──
             {
                 // Use the batch points already generated (BATCH_N=16, within Straus range)
                 int64_t best_time5 = bench_msm_vartime(ge_msm_vartime_x64, batch_scalars, batch_points, BATCH_N);
-                decltype(dispatch_table.msm_vartime) best_fn5 = ge_msm_vartime_x64;
+                decltype(tbl.msm_vartime) best_fn5 = ge_msm_vartime_x64;
 
 #if !ED25519_NO_AVX2
                 if (features & ED25519_CPU_AVX2)
@@ -775,24 +789,34 @@ void ed25519_autotune(void)
                     }
                 }
 #endif
-                dispatch_table.msm_vartime = best_fn5;
+                tbl.msm_vartime = best_fn5;
 
                 // msm_base_vartime: delegates to msm_vartime internally, so use the same selection
                 // (the base point part is handled by ge_scalarmult_base_ct which has its own dispatch)
                 if (best_fn5 == ge_msm_vartime_x64)
-                    dispatch_table.msm_base_vartime = ge_msm_base_vartime_x64;
+                    tbl.msm_base_vartime = ge_msm_base_vartime_x64;
 #if !ED25519_NO_AVX2
                 else if (best_fn5 == ge_msm_vartime_avx2)
-                    dispatch_table.msm_base_vartime = ge_msm_base_vartime_avx2;
+                    tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
 #endif
 #if !ED25519_NO_AVX512
                 else if (best_fn5 == ge_msm_vartime_ifma)
-                    dispatch_table.msm_base_vartime = ge_msm_base_vartime_ifma;
+                    tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
 #endif
             }
+
+            ed25519_secure_erase(batch_scalars, sizeof(batch_scalars));
         }
 
         (void)features;
+
+        // Erase test scalars
+        ed25519_secure_erase(s1, 32);
+        ed25519_secure_erase(s2, 32);
+
+        // Publish the fully-built dispatch table with a release fence
+        dispatch_table = tbl;
+        std::atomic_thread_fence(std::memory_order_release);
     }
 }
 
