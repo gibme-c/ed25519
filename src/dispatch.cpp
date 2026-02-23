@@ -47,7 +47,7 @@ For more information, please refer to <http://unlicense.org/>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <mutex>
+#include <atomic>
 #include <vector>
 
 // ── Forward declarations of all implementation functions ──
@@ -196,15 +196,14 @@ const ed25519_dispatch_table &ed25519_get_dispatch()
 
 // ── CPUID-based heuristic initialization ──
 
-static std::once_flag init_flag;
-static std::once_flag autotune_flag;
+static std::atomic<bool> init_done{false};
+static std::atomic<bool> autotune_done{false};
 
 void ed25519_init(void)
 {
-    std::call_once(
-        init_flag,
-        []()
-        {
+    bool expected = false;
+    if (init_done.compare_exchange_strong(expected, true))
+    {
             // Reset to x64 baseline
             dispatch_table.scalarmult_ct = ge_scalarmult_x64_ct;
             dispatch_table.scalarmult_base_ct = ge_scalarmult_base_ct_x64;
@@ -254,8 +253,8 @@ void ed25519_init(void)
             }
 #endif
 
-            (void)features;
-        });
+        (void)features;
+    }
 }
 
 // ── Auto-tune implementation ──
@@ -472,10 +471,9 @@ namespace
 
 void ed25519_autotune(void)
 {
-    std::call_once(
-        autotune_flag,
-        []()
-        {
+    bool expected = false;
+    if (autotune_done.compare_exchange_strong(expected, true))
+    {
             const uint32_t features = ed25519_cpu_features();
 
             // Generate test inputs using x64 baseline (avoids circular dispatch dependency)
@@ -798,8 +796,8 @@ void ed25519_autotune(void)
                 }
             }
 
-            (void)features;
-        });
+        (void)features;
+    }
 }
 
 #endif // ED25519_SIMD
