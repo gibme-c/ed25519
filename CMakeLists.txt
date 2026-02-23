@@ -94,7 +94,7 @@ else()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
     endif()
 
-    if(NOT APPLE)
+    if(NOT APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
 endif()
