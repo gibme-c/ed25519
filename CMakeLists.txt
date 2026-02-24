@@ -13,6 +13,9 @@ set(LIB_VERSION_STRING "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_PATCH_VE
 
 project(ed25519 VERSION "${LIB_VERSION_STRING}" LANGUAGES CXX)
 
+include(CheckCXXSourceCompiles)
+include(CheckCXXCompilerFlag)
+
 if(NOT MSVC)
     find_program(CCACHE_PROGRAM ccache)
     if(CCACHE_PROGRAM)
@@ -31,10 +34,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GS /guard:cf /wd4267 /wd4804")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GS /guard:cf /sdl /wd4267 /wd4804")
     # /wd4267: size_t→int truncation in fe arithmetic (bounded by algorithm, always < limb count)
     # /wd4804: bool in constant-time bit operations (intentional branchless idiom)
+    check_cxx_compiler_flag("/Qspectre" HAS_QSPECTRE)
+    if(HAS_QSPECTRE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qspectre")
+    endif()
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA")
+    # CET shadow stack compatibility
+    check_cxx_compiler_flag("/guard:ehcont" HAS_GUARD_EHCONT)
+    if(HAS_GUARD_EHCONT)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /guard:ehcont")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:ehcont /CETCOMPAT")
+    endif()
 
     string(REPLACE "/Ob0" "/Ob2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Oi")
@@ -46,7 +59,10 @@ else()
     endif()
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAG} -Wall -Wextra -Wuninitialized")
-    if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MINGW))
+    set(CMAKE_REQUIRED_FLAGS "-fstack-protector-strong")
+    check_cxx_source_compiles("int main() { char buf[64]; buf[0] = 0; return buf[0]; }" HAS_STACK_PROTECTOR_STRONG)
+    unset(CMAKE_REQUIRED_FLAGS)
+    if(HAS_STACK_PROTECTOR_STRONG)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
     endif()
 
@@ -54,22 +70,44 @@ else()
     # SIMD instructions that could create data-dependent timing behavior,
     # which would undermine the constant-time guarantees of the crypto code.
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-tree-vectorize -fcf-protection=full -fstack-clash-protection")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-tree-vectorize")
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-vectorize -fno-slp-vectorize")
-        if(NOT APPLE AND NOT WIN32)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcf-protection=full -fstack-clash-protection")
+    endif()
+
+    # Intel CET control flow integrity (x86_64 only)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$")
+        check_cxx_compiler_flag("-fcf-protection=full" HAS_CF_PROTECTION)
+        if(HAS_CF_PROTECTION)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcf-protection=full")
         endif()
     endif()
 
+    # Stack clash protection (Linux only — not supported on macOS/Apple Clang, not needed on Windows)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-clash-protection")
+    endif()
+
     # Runtime buffer overflow detection via checked libc wrappers (Release and RelWithDebInfo)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -D_FORTIFY_SOURCE=2")
+    # Skip on Windows — MinGW doesn't have fortified libc wrappers
+    if(NOT WIN32)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -D_FORTIFY_SOURCE=2")
+    endif()
 
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -Og")
 
+    # MinGW linker hardening (DEP + ASLR) — only for GCC+MinGW (known GNU ld).
+    # Clang on Windows can target either MinGW or MSVC ABI — applying the wrong
+    # linker flags breaks the build. We let Clang on Windows rely on OS defaults
+    # for DEP/ASLR (enabled by default on modern Windows).
     if(MINGW)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va")
+    endif()
+
+    # Linux linker hardening (for CI builds)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now -Wl,-z,noexecstack")
     endif()
 endif()
 
