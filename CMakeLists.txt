@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug, Release, RelWithDebInfo")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug, Release, RelWithDebInfo" FORCE)
+endif()
 message(STATUS "Mode: ${CMAKE_BUILD_TYPE}")
 
 set(ARCH native CACHE STRING "CPU to build for: -march value or native")
@@ -16,41 +18,25 @@ project(ed25519 VERSION "${LIB_VERSION_STRING}" LANGUAGES CXX)
 include(CheckCXXSourceCompiles)
 include(CheckCXXCompilerFlag)
 
-if(NOT MSVC)
-    find_program(CCACHE_PROGRAM ccache)
-    if(CCACHE_PROGRAM)
-        message(STATUS "Found ccache... Activating...")
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+# --- IDE and build ergonomics (only when this is the top-level project) ---
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    if(NOT MSVC)
+        find_program(CCACHE_PROGRAM ccache)
+        if(CCACHE_PROGRAM)
+            message(STATUS "Found ccache... Activating...")
+            set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+        endif()
     endif()
+
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+    set(CMAKE_SUPPRESS_REGENERATION ON)
 endif()
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_SUPPRESS_REGENERATION ON)
-
-# C++17
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
+# --- Compiler feature/flag detection (sets cache variables only) ---
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /GS /guard:cf /sdl /wd4267 /wd4804")
-    # /wd4267: size_t→int truncation in fe arithmetic (bounded by algorithm, always < limb count)
-    # /wd4804: bool in constant-time bit operations (intentional branchless idiom)
     check_cxx_compiler_flag("/Qspectre" HAS_QSPECTRE)
-    if(HAS_QSPECTRE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qspectre")
-    endif()
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA")
     # CET shadow stack compatibility
     check_cxx_compiler_flag("/guard:ehcont" HAS_GUARD_EHCONT)
-    if(HAS_GUARD_EHCONT)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /guard:ehcont")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /guard:ehcont /CETCOMPAT")
-    endif()
-
-    string(REPLACE "/Ob0" "/Ob2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Oi")
 else()
     if("${ARCH}" STREQUAL "default")
         set(ARCH_FLAG "")
@@ -58,56 +44,13 @@ else()
         set(ARCH_FLAG "-march=${ARCH}")
     endif()
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ARCH_FLAG} -Wall -Wextra -Wuninitialized")
     set(CMAKE_REQUIRED_FLAGS "-fstack-protector-strong")
     check_cxx_source_compiles("int main() { char buf[64]; buf[0] = 0; return buf[0]; }" HAS_STACK_PROTECTOR_STRONG)
     unset(CMAKE_REQUIRED_FLAGS)
-    if(HAS_STACK_PROTECTOR_STRONG)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
-    endif()
-
-    # Disable auto-vectorization to prevent the compiler from introducing
-    # SIMD instructions that could create data-dependent timing behavior,
-    # which would undermine the constant-time guarantees of the crypto code.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-tree-vectorize")
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-vectorize -fno-slp-vectorize")
-    endif()
 
     # Intel CET control flow integrity (x86_64 only)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$")
         check_cxx_compiler_flag("-fcf-protection=full" HAS_CF_PROTECTION)
-        if(HAS_CF_PROTECTION)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcf-protection=full")
-        endif()
-    endif()
-
-    # Stack clash protection (Linux only — not supported on macOS/Apple Clang, not needed on Windows)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-clash-protection")
-    endif()
-
-    # Runtime buffer overflow detection via checked libc wrappers (Release and RelWithDebInfo)
-    # Skip on Windows — MinGW doesn't have fortified libc wrappers
-    if(NOT WIN32)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_FORTIFY_SOURCE=2")
-        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -D_FORTIFY_SOURCE=2")
-    endif()
-
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -Og")
-
-    # MinGW linker hardening (DEP + ASLR) — only for GCC+MinGW (known GNU ld).
-    # Clang on Windows can target either MinGW or MSVC ABI — applying the wrong
-    # linker flags breaks the build. We let Clang on Windows rely on OS defaults
-    # for DEP/ASLR (enabled by default on modern Windows).
-    if(MINGW)
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va")
-    endif()
-
-    # Linux linker hardening (for CI builds)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,relro,-z,now -Wl,-z,noexecstack")
     endif()
 endif()
 
@@ -238,19 +181,6 @@ if(FORCE_PORTABLE)
     message(STATUS "ED25519: Forced portable (32-bit) implementation via FORCE_PORTABLE")
 endif()
 
-option(ENABLE_LTO "Enable link-time optimization" OFF)
-if(ENABLE_LTO)
-    if(MSVC)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GL")
-        set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /LTCG")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
-    endif()
-    message(STATUS "ED25519: Link-time optimization enabled")
-endif()
-
 # SIMD support: derived from ENABLE_AVX2 / ENABLE_AVX512
 # When either backend is enabled, compile CPUID module and define ED25519_SIMD=1
 if(ENABLE_AVX2 OR ENABLE_AVX512)
@@ -303,13 +233,33 @@ else()
     message(STATUS "ED25519: SIMD runtime dispatch disabled (x64 baseline only)")
 endif()
 
+# --- Library target ---
 add_library(ed25519 STATIC ${ED25519_SRC})
-target_include_directories(ed25519 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(ed25519 PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+set_target_properties(ed25519 PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    POSITION_INDEPENDENT_CODE ON
+)
+
 if(FORCE_PORTABLE)
     target_compile_definitions(ed25519 PUBLIC ED25519_FORCE_PORTABLE=1)
 endif()
 if(ENABLE_AVX2 OR ENABLE_AVX512)
     target_compile_definitions(ed25519 PUBLIC ED25519_SIMD=1)
+
+    # MinGW GCC + Debug: Windows x64 ABI only guarantees 16-byte stack alignment,
+    # but YMM/ZMM registers need 32/64-byte alignment. At -O0, GCC spills AVX
+    # registers to the stack with aligned moves (vmovdqa), which SIGSEGV on the
+    # misaligned stack. Force -O1 for SIMD backends in Debug mode so GCC keeps
+    # values in registers.
+    set(_MINGW_SIMD_DEBUG_FIX "")
+    if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(_MINGW_SIMD_DEBUG_FIX "$<$<CONFIG:Debug>:-O1>")
+    endif()
 
     # AVX-512 IFMA compile flags: IFMA TUs need special instruction set flags
     if(ENABLE_AVX512)
@@ -317,6 +267,9 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
             set(ED25519_IFMA_FLAGS "/arch:AVX512")
         else()
             set(ED25519_IFMA_FLAGS "-mavx512f;-mavx512ifma")
+            if(_MINGW_SIMD_DEBUG_FIX)
+                list(APPEND ED25519_IFMA_FLAGS "${_MINGW_SIMD_DEBUG_FIX}")
+            endif()
         endif()
         foreach(IFMA_SRC ${ED25519_IFMA_SRC})
             set_source_files_properties(${IFMA_SRC} PROPERTIES COMPILE_OPTIONS "${ED25519_IFMA_FLAGS}")
@@ -333,6 +286,9 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
             set(ED25519_AVX2_FLAGS "/arch:AVX2")
         else()
             set(ED25519_AVX2_FLAGS "-mavx2")
+            if(_MINGW_SIMD_DEBUG_FIX)
+                list(APPEND ED25519_AVX2_FLAGS "${_MINGW_SIMD_DEBUG_FIX}")
+            endif()
         endif()
         foreach(AVX2_SRC ${ED25519_AVX2_SRC})
             set_source_files_properties(${AVX2_SRC} PROPERTIES COMPILE_OPTIONS "${ED25519_AVX2_FLAGS}")
@@ -344,6 +300,104 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
     endif()
 endif()
 
+# --- Library compile options (PRIVATE — do not leak to downstream consumers) ---
+if(MSVC)
+    target_compile_options(ed25519 PRIVATE
+        /W4 /GS /guard:cf /sdl /wd4267 /wd4804
+        $<$<CONFIG:Debug>:/Ob2 /Oi>
+    )
+    # /wd4267: size_t->int truncation in fe arithmetic (bounded by algorithm, always < limb count)
+    # /wd4804: bool in constant-time bit operations (intentional branchless idiom)
+    if(HAS_QSPECTRE)
+        target_compile_options(ed25519 PRIVATE /Qspectre)
+    endif()
+    if(HAS_GUARD_EHCONT)
+        target_compile_options(ed25519 PRIVATE /guard:ehcont)
+    endif()
+else()
+    target_compile_options(ed25519 PRIVATE
+        ${ARCH_FLAG} -Wall -Wextra -Wuninitialized
+        $<$<CONFIG:Debug>:-g3 -Og>
+    )
+    if(HAS_STACK_PROTECTOR_STRONG)
+        target_compile_options(ed25519 PRIVATE -fstack-protector-strong)
+    endif()
+
+    # Disable auto-vectorization to prevent the compiler from introducing
+    # SIMD instructions that could create data-dependent timing behavior,
+    # which would undermine the constant-time guarantees of the crypto code.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(ed25519 PRIVATE -fno-tree-vectorize)
+        # libstdc++ container assertions in Debug (bounds checks on operator[], etc.)
+        target_compile_options(ed25519 PRIVATE
+            $<$<CONFIG:Debug>:-D_GLIBCXX_ASSERTIONS>
+        )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(ed25519 PRIVATE -fno-vectorize -fno-slp-vectorize)
+    endif()
+
+    if(HAS_CF_PROTECTION)
+        target_compile_options(ed25519 PRIVATE -fcf-protection=full)
+    endif()
+
+    # Stack clash protection (Linux only — not supported on macOS/Apple Clang, not needed on Windows)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_compile_options(ed25519 PRIVATE -fstack-clash-protection)
+    endif()
+
+    # Runtime buffer overflow detection via checked libc wrappers (non-Debug only)
+    # Skip on Windows — MinGW doesn't have fortified libc wrappers
+    if(NOT WIN32)
+        target_compile_options(ed25519 PRIVATE
+            $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=2>
+        )
+    endif()
+endif()
+
+# --- LTO (target-scoped) ---
+option(ENABLE_LTO "Enable link-time optimization" OFF)
+if(ENABLE_LTO)
+    if(MSVC)
+        target_compile_options(ed25519 PRIVATE /GL)
+        set_target_properties(ed25519 PROPERTIES STATIC_LIBRARY_FLAGS "/LTCG")
+    else()
+        target_compile_options(ed25519 PRIVATE -flto)
+    endif()
+    message(STATUS "ED25519: Link-time optimization enabled")
+endif()
+
+# --- Helper: apply compile and linker hardening flags to executables ---
+# Compile flags that affect linkage (e.g. /guard:ehcont) must be applied to
+# ALL translation units in the final executable, not just the library's.
+# Uses LINK_FLAGS property instead of target_link_options for CMake 3.10 compat.
+function(ed25519_apply_exe_flags target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /GS /guard:cf /sdl)
+        set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " /DYNAMICBASE /NXCOMPAT /HIGHENTROPYVA")
+        if(HAS_GUARD_EHCONT)
+            target_compile_options(${target} PRIVATE /guard:ehcont)
+            set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " /guard:ehcont /CETCOMPAT")
+        endif()
+    elseif(MINGW)
+        # MinGW linker hardening (DEP + ASLR) — only for GCC+MinGW (known GNU ld).
+        # Clang on Windows can target either MinGW or MSVC ABI — applying the wrong
+        # linker flags breaks the build. We let Clang on Windows rely on OS defaults
+        # for DEP/ASLR (enabled by default on modern Windows).
+        set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " -static -Wl,--nxcompat -Wl,--dynamicbase -Wl,--high-entropy-va")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Linux linker hardening (for CI builds)
+        set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-z,relro,-z,now -Wl,-z,noexecstack")
+    endif()
+    if(ENABLE_LTO)
+        if(MSVC)
+            set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " /LTCG")
+        else()
+            set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " -flto")
+        endif()
+    endif()
+endfunction()
+
+# --- Executables ---
 option(BUILD_TESTS "Build unit tests" OFF)
 if(DEFINED ENV{BUILD_TESTS})
     set(BUILD_TESTS $ENV{BUILD_TESTS})
@@ -359,6 +413,7 @@ if(BUILD_TESTS)
 
     add_executable(ed25519-tests src/tests.cpp)
     target_link_libraries(ed25519-tests ed25519)
+    ed25519_apply_exe_flags(ed25519-tests)
 endif()
 
 option(BUILD_TOOLS "Build test vector generator" OFF)
@@ -370,6 +425,7 @@ if(BUILD_TOOLS)
 
     add_executable(ed25519-gen-testvectors tools/gen_test_vectors.cpp)
     target_link_libraries(ed25519-gen-testvectors ed25519)
+    ed25519_apply_exe_flags(ed25519-gen-testvectors)
 endif()
 
 if(BUILD_BENCHMARKS)
@@ -377,4 +433,5 @@ if(BUILD_BENCHMARKS)
 
     add_executable(ed25519-benchmark src/benchmark.cpp)
     target_link_libraries(ed25519-benchmark ed25519)
+    ed25519_apply_exe_flags(ed25519-benchmark)
 endif()

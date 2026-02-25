@@ -245,7 +245,7 @@ void ed25519_init(void)
 #endif
         // AVX2 available for CT functions and batch operations.
 #if !ED25519_NO_AVX2
-        if (features & ED25519_CPU_AVX2)
+            if (features & ED25519_CPU_AVX2)
         {
             tbl.scalarmult_ct = ge_scalarmult_avx2_ct;
             tbl.scalarmult_base_ct = ge_scalarmult_base_ct_avx2;

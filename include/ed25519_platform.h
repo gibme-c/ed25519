@@ -43,6 +43,8 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_PLATFORM_H
 #define ED25519_PLATFORM_H
 
+#include "ed25519_export.h"
+
 #if defined(__x86_64__) || defined(_M_X64)
 #define ED25519_PLATFORM_X64 1
 #endif
