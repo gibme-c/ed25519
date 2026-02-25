@@ -56,7 +56,7 @@ For more information, please refer to <http://unlicense.org/>
 // Umbrella macro for all 64-bit platforms that use the radix-2^51 representation.
 // The "x64" directory and function names are historical; the code is portable C++.
 // ED25519_FORCE_PORTABLE overrides to use the 32-bit portable implementation for testing.
-#if !ED25519_FORCE_PORTABLE && (ED25519_PLATFORM_X64 || ED25519_PLATFORM_ARM64)
+#if !(defined(ED25519_FORCE_PORTABLE) && ED25519_FORCE_PORTABLE) && (defined(ED25519_PLATFORM_X64) || defined(ED25519_PLATFORM_ARM64))
 #define ED25519_PLATFORM_64BIT 1
 #endif
 
