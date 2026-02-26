@@ -3969,6 +3969,182 @@ static void fuzz_ristretto_from_uniform()
 }
 
 // ==============================================
+// X25519 Tests (RFC 7748)
+// ==============================================
+
+static void test_x25519()
+{
+    std::cout << std::endl << "=== x25519 (RFC 7748) ===" << std::endl;
+
+    // RFC 7748 §5.2 — Test vector 1
+    {
+        const unsigned char input_scalar[] = {0xa5, 0x46, 0xe3, 0x6b, 0xf0, 0x52, 0x7c, 0x9d, 0x3b, 0x16, 0x15,
+                                              0x4b, 0x82, 0x46, 0x5e, 0xdd, 0x62, 0x14, 0x4c, 0x0a, 0xc1, 0xfc,
+                                              0x5a, 0x18, 0x50, 0x6a, 0x22, 0x44, 0xba, 0x44, 0x9a, 0xc4};
+        const unsigned char input_u[] = {0xe6, 0xdb, 0x68, 0x67, 0x58, 0x30, 0x30, 0xdb, 0x35, 0x94, 0xc1,
+                                         0xa4, 0x24, 0xb1, 0x5f, 0x7c, 0x72, 0x66, 0x24, 0xec, 0x26, 0xb3,
+                                         0x35, 0x3b, 0x10, 0xa9, 0x03, 0xa6, 0xd0, 0xab, 0x1c, 0x4c};
+        const unsigned char expected[] = {0xc3, 0xda, 0x55, 0x37, 0x9d, 0xe9, 0xc6, 0x90, 0x8e, 0x94, 0xea,
+                                          0x4d, 0xf2, 0x8d, 0x08, 0x4f, 0x32, 0xec, 0xcf, 0x03, 0x49, 0x1c,
+                                          0x71, 0xf7, 0x54, 0xb4, 0x07, 0x55, 0x77, 0xa2, 0x85, 0x52};
+        unsigned char out[32];
+        x25519(out, input_scalar, input_u);
+        check_bytes("x25519 RFC 7748 §5.2 vector 1", expected, out, 32);
+    }
+
+    // RFC 7748 §5.2 — Test vector 2
+    {
+        const unsigned char input_scalar[] = {0x4b, 0x66, 0xe9, 0xd4, 0xd1, 0xb4, 0x67, 0x3c, 0x5a, 0xd2, 0x26,
+                                              0x91, 0x95, 0x7d, 0x6a, 0xf5, 0xc1, 0x1b, 0x64, 0x21, 0xe0, 0xea,
+                                              0x01, 0xd4, 0x2c, 0xa4, 0x16, 0x9e, 0x79, 0x18, 0xba, 0x0d};
+        const unsigned char input_u[] = {0xe5, 0x21, 0x0f, 0x12, 0x78, 0x68, 0x11, 0xd3, 0xf4, 0xb7, 0x95,
+                                         0x9d, 0x05, 0x38, 0xae, 0x2c, 0x31, 0xdb, 0xe7, 0x10, 0x6f, 0xc0,
+                                         0x3c, 0x3e, 0xfc, 0x4c, 0xd5, 0x49, 0xc7, 0x15, 0xa4, 0x93};
+        const unsigned char expected[] = {0x95, 0xcb, 0xde, 0x94, 0x76, 0xe8, 0x90, 0x7d, 0x7a, 0xad, 0xe4,
+                                          0x5c, 0xb4, 0xb8, 0x73, 0xf8, 0x8b, 0x59, 0x5a, 0x68, 0x79, 0x9f,
+                                          0xa1, 0x52, 0xe6, 0xf8, 0xf7, 0x64, 0x7a, 0xac, 0x79, 0x57};
+        unsigned char out[32];
+        x25519(out, input_scalar, input_u);
+        check_bytes("x25519 RFC 7748 §5.2 vector 2", expected, out, 32);
+    }
+
+    // RFC 7748 §5.2 — Iterated: after 1 iteration
+    {
+        unsigned char k[32] = {9};
+        unsigned char u[32] = {9};
+        unsigned char out[32];
+        x25519(out, k, u);
+        const unsigned char expected_1[] = {0x42, 0x2c, 0x8e, 0x7a, 0x62, 0x27, 0xd7, 0xbc, 0xa1, 0x35, 0x0b,
+                                            0x3e, 0x2b, 0xb7, 0x27, 0x9f, 0x78, 0x97, 0xb8, 0x7b, 0xb6, 0x85,
+                                            0x4b, 0x78, 0x3c, 0x60, 0xe8, 0x03, 0x11, 0xae, 0x30, 0x79};
+        check_bytes("x25519 RFC 7748 §5.2 iter=1", expected_1, out, 32);
+    }
+
+    // RFC 7748 §5.2 — Iterated: after 1,000 iterations
+    {
+        unsigned char k[32] = {9};
+        unsigned char u[32] = {9};
+        for (int i = 0; i < 1000; i++)
+        {
+            unsigned char out[32];
+            x25519(out, k, u);
+            std::memcpy(u, k, 32);
+            std::memcpy(k, out, 32);
+        }
+        const unsigned char expected_1000[] = {0x68, 0x4c, 0xf5, 0x9b, 0xa8, 0x33, 0x09, 0x55, 0x28, 0x00, 0xef,
+                                               0x56, 0x6f, 0x2f, 0x4d, 0x3c, 0x1c, 0x38, 0x87, 0xc4, 0x93, 0x60,
+                                               0xe3, 0x87, 0x5f, 0x2e, 0xb9, 0x4d, 0x99, 0x53, 0x2c, 0x51};
+        check_bytes("x25519 RFC 7748 §5.2 iter=1000", expected_1000, k, 32);
+    }
+
+    // RFC 7748 §6.1 — DH key exchange
+    {
+        const unsigned char alice_scalar[] = {0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d, 0x3c, 0x16, 0xc1,
+                                              0x72, 0x51, 0xb2, 0x66, 0x45, 0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0,
+                                              0x99, 0x2a, 0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a};
+        const unsigned char bob_scalar[] = {0x5d, 0xab, 0x08, 0x7e, 0x62, 0x4a, 0x8a, 0x4b, 0x79, 0xe1, 0x7f,
+                                            0x8b, 0x83, 0x80, 0x0e, 0xe6, 0x6f, 0x3b, 0xb1, 0x29, 0x26, 0x18,
+                                            0xb6, 0xfd, 0x1c, 0x2f, 0x8b, 0x27, 0xff, 0x88, 0xe0, 0xeb};
+        const unsigned char alice_pub_expected[] = {0x85, 0x20, 0xf0, 0x09, 0x89, 0x30, 0xa7, 0x54, 0x74, 0x8b, 0x7d,
+                                                    0xdc, 0xb4, 0x3e, 0xf7, 0x5a, 0x0d, 0xbf, 0x3a, 0x0d, 0x26, 0x38,
+                                                    0x1a, 0xf4, 0xeb, 0xa4, 0xa9, 0x8e, 0xaa, 0x9b, 0x4e, 0x6a};
+        const unsigned char bob_pub_expected[] = {0xde, 0x9e, 0xdb, 0x7d, 0x7b, 0x7d, 0xc1, 0xb4, 0xd3, 0x5b, 0x61,
+                                                  0xc2, 0xec, 0xe4, 0x35, 0x37, 0x3f, 0x83, 0x43, 0xc8, 0x5b, 0x78,
+                                                  0x67, 0x4d, 0xad, 0xfc, 0x7e, 0x14, 0x6f, 0x88, 0x2b, 0x4f};
+        const unsigned char shared_expected[] = {0x4a, 0x5d, 0x9d, 0x5b, 0xa4, 0xce, 0x2d, 0xe1, 0x72, 0x8e, 0x3b,
+                                                 0xf4, 0x80, 0x35, 0x0f, 0x25, 0xe0, 0x7e, 0x21, 0xc9, 0x47, 0xd1,
+                                                 0x9e, 0x33, 0x76, 0xf0, 0x9b, 0x3c, 0x1e, 0x16, 0x17, 0x42};
+
+        unsigned char alice_pub[32], bob_pub[32];
+        x25519_base(alice_pub, alice_scalar);
+        x25519_base(bob_pub, bob_scalar);
+        check_bytes("x25519 §6.1 Alice pubkey", alice_pub_expected, alice_pub, 32);
+        check_bytes("x25519 §6.1 Bob pubkey", bob_pub_expected, bob_pub, 32);
+
+        unsigned char shared_ab[32], shared_ba[32];
+        x25519(shared_ab, alice_scalar, bob_pub);
+        x25519(shared_ba, bob_scalar, alice_pub);
+        check_bytes("x25519 §6.1 shared secret (Alice)", shared_expected, shared_ab, 32);
+        check_bytes("x25519 §6.1 shared secret (Bob)", shared_expected, shared_ba, 32);
+        check_bytes("x25519 §6.1 shared secret match", shared_ab, shared_ba, 32);
+
+        // Verify x25519_base matches x25519 with basepoint
+        const unsigned char basepoint[32] = {9};
+        unsigned char alice_pub2[32];
+        x25519(alice_pub2, alice_scalar, basepoint);
+        check_bytes("x25519_base == x25519(s, 9)", alice_pub, alice_pub2, 32);
+    }
+}
+
+static void fuzz_fe_mul121666()
+{
+    std::cout << std::endl << "Fuzz: fe_mul121666" << std::endl;
+
+    // Load constant 121666 into an fe via byte encoding
+    unsigned char c_bytes[32] = {0};
+    c_bytes[0] = 121666 & 0xff;
+    c_bytes[1] = (121666 >> 8) & 0xff;
+    c_bytes[2] = (121666 >> 16) & 0xff;
+    fe fe_c;
+    fe_frombytes(fe_c, c_bytes);
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char fbytes[32];
+        random_bytes(fbytes, 32);
+        fbytes[31] &= 0x7f; // ensure < 2^255
+        fe f;
+        fe_frombytes(f, fbytes);
+
+        fe result_specialized, result_general;
+        fe_mul121666(result_specialized, f);
+        fe_mul(result_general, f, fe_c);
+
+        unsigned char s_bytes[32], g_bytes[32];
+        fe_tobytes(s_bytes, result_specialized);
+        fe_tobytes(g_bytes, result_general);
+
+        std::string tag = "fe_mul121666 vs fe_mul " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), g_bytes, s_bytes, 32);
+    }
+    std::cout << "  PASS (" << FUZZ_N << " checks)" << std::endl;
+}
+
+static void fuzz_x25519()
+{
+    std::cout << std::endl << "Fuzz: x25519" << std::endl;
+
+    const unsigned char basepoint[32] = {9};
+
+    for (int i = 0; i < FUZZ_N; i++)
+    {
+        unsigned char a[32], b[32];
+        random_bytes(a, 32);
+        random_bytes(b, 32);
+
+        // Commutativity: x25519(a, x25519_base(b)) == x25519(b, x25519_base(a))
+        unsigned char pub_a[32], pub_b[32];
+        x25519_base(pub_a, a);
+        x25519_base(pub_b, b);
+
+        unsigned char shared_ab[32], shared_ba[32];
+        x25519(shared_ab, a, pub_b);
+        x25519(shared_ba, b, pub_a);
+
+        std::string tag = "x25519 commutative " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), shared_ab, shared_ba, 32);
+
+        // Basepoint consistency: x25519(s, 9) == x25519_base(s)
+        unsigned char via_base[32], via_full[32];
+        x25519_base(via_base, a);
+        x25519(via_full, a, basepoint);
+        tag = "x25519 base consistency " + std::to_string(i);
+        check_bytes_quiet(tag.c_str(), via_base, via_full, 32);
+    }
+    std::cout << "  PASS (2x" << FUZZ_N << " checks)" << std::endl;
+}
+
+// ==============================================
 // Cross-backend consistency
 // ==============================================
 
@@ -4115,6 +4291,9 @@ int main(int argc, char *argv[])
     test_ge_multiscalar_mul_vartime();
     test_ge_multiscalar_mul_base_vartime();
 
+    // X25519
+    test_x25519();
+
     // Edge-case tests
     test_scalarmult_zero_scalar();
     test_scalarmult_identity_point();
@@ -4158,6 +4337,8 @@ int main(int argc, char *argv[])
     fuzz_ristretto_roundtrip();
     fuzz_ristretto_equals();
     fuzz_ristretto_from_uniform();
+    fuzz_fe_mul121666();
+    fuzz_x25519();
 
     // Summary
     std::cout << std::endl << "==================" << std::endl;

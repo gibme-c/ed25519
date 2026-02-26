@@ -77,6 +77,7 @@ For more information, please refer to <http://unlicense.org/>
 #include "fe_isnegative.h"
 #include "fe_isnonzero.h"
 #include "fe_mul.h"
+#include "fe_mul121666.h"
 #include "fe_neg.h"
 #include "fe_pow22523.h"
 #include "fe_sq.h"
@@ -133,5 +134,6 @@ For more information, please refer to <http://unlicense.org/>
 #include "sc_mulsub.h"
 #include "sc_reduce.h"
 #include "sc_sub.h"
+#include "x25519.h"
 
 #endif // ED25519_H

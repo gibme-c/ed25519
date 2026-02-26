@@ -49,6 +49,7 @@ set(ED25519_SRC
     src/ed25519_secure_erase.cpp
     src/ge.cpp
     src/ristretto255.cpp
+    src/x25519.cpp
     src/slide.cpp
     src/portable/sc_mul.cpp
     src/portable/sc_muladd.cpp
@@ -91,6 +92,7 @@ if(NOT FORCE_PORTABLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][d
         src/x64/fe_isnegative.cpp
         src/x64/fe_isnonzero.cpp
         src/x64/fe_mul.cpp
+        src/x64/fe_mul121666.cpp
         src/x64/fe_pow22523.cpp
         src/x64/fe_sq.cpp
         src/x64/fe_sq2.cpp
@@ -137,6 +139,7 @@ else()
         src/portable/fe_isnegative.cpp
         src/portable/fe_isnonzero.cpp
         src/portable/fe_mul.cpp
+        src/portable/fe_mul121666.cpp
         src/portable/fe_pow22523.cpp
         src/portable/fe_sq.cpp
         src/portable/fe_sq2.cpp
