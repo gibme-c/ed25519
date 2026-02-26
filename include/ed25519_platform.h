@@ -47,17 +47,29 @@ For more information, please refer to <http://unlicense.org/>
 
 #if defined(__x86_64__) || defined(_M_X64)
 #define ED25519_PLATFORM_X64 1
+#else
+#define ED25519_PLATFORM_X64 0
 #endif
 
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define ED25519_PLATFORM_ARM64 1
+#else
+#define ED25519_PLATFORM_ARM64 0
 #endif
 
 // Umbrella macro for all 64-bit platforms that use the radix-2^51 representation.
 // The "x64" directory and function names are historical; the code is portable C++.
 // ED25519_FORCE_PORTABLE overrides to use the 32-bit portable implementation for testing.
-#if !(defined(ED25519_FORCE_PORTABLE) && ED25519_FORCE_PORTABLE) && (defined(ED25519_PLATFORM_X64) || defined(ED25519_PLATFORM_ARM64))
+#if !(defined(ED25519_FORCE_PORTABLE) && ED25519_FORCE_PORTABLE) && (ED25519_PLATFORM_X64 || ED25519_PLATFORM_ARM64)
 #define ED25519_PLATFORM_64BIT 1
+#else
+#define ED25519_PLATFORM_64BIT 0
+#endif
+
+// ED25519_SIMD is defined by CMake when AVX2/AVX-512 backends are enabled.
+// Default to 0 so downstream consumers can use #if without -Wundef warnings.
+#ifndef ED25519_SIMD
+#define ED25519_SIMD 0
 #endif
 
 #if defined(__SIZEOF_INT128__)
