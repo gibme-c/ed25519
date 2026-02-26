@@ -5,9 +5,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 message(STATUS "Mode: ${CMAKE_BUILD_TYPE}")
 
-set(ARCH native CACHE STRING "CPU to build for: -march value or native")
-message(STATUS "Building for target architecture: ${ARCH}")
-
 set(LIB_MAJOR_VERSION "2")
 set(LIB_MINOR_VERSION "0")
 set(LIB_PATCH_VERSION "0")
@@ -38,12 +35,6 @@ if(MSVC)
     # CET shadow stack compatibility
     check_cxx_compiler_flag("/guard:ehcont" HAS_GUARD_EHCONT)
 else()
-    if("${ARCH}" STREQUAL "default")
-        set(ARCH_FLAG "")
-    else()
-        set(ARCH_FLAG "-march=${ARCH}")
-    endif()
-
     set(CMAKE_REQUIRED_FLAGS "-fstack-protector-strong")
     check_cxx_source_compiles("int main() { char buf[64]; buf[0] = 0; return buf[0]; }" HAS_STACK_PROTECTOR_STRONG)
     unset(CMAKE_REQUIRED_FLAGS)
@@ -316,7 +307,7 @@ if(MSVC)
     endif()
 else()
     target_compile_options(ed25519 PRIVATE
-        ${ARCH_FLAG} -Wall -Wextra -Wuninitialized
+        -Wall -Wextra -Wuninitialized
         $<$<CONFIG:Debug>:-g3 -Og>
     )
     if(HAS_STACK_PROTECTOR_STRONG)
