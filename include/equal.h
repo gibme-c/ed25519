@@ -37,7 +37,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_EQUAL_H
 #define ED25519_EQUAL_H
 
-#include "ct_barrier.h"
+#include "ed25519_ct_barrier.h"
 
 #include <cstdint>
 
@@ -53,7 +53,7 @@ static inline unsigned char equal(signed char b, signed char c)
     unsigned char ub = b;
     unsigned char uc = c;
     unsigned char x = ub ^ uc; /* 0: yes; 1..255: no */
-    uint32_t y = ct_barrier_u32(x); /* 0: yes; 1..255: no */
+    uint32_t y = ed25519_ct_barrier_u32(x); /* 0: yes; 1..255: no */
     y -= 1; /* 4294967295: yes; 0..254: no */
     y >>= 31; /* 1: yes; 0: no */
     return (unsigned char)y;

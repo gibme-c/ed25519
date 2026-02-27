@@ -37,7 +37,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_NEGATIVE_H
 #define ED25519_NEGATIVE_H
 
-#include "ct_barrier.h"
+#include "ed25519_ct_barrier.h"
 
 /**
  * @brief Returns 1 if the input is negative, 0 otherwise (constant-time).
@@ -48,7 +48,7 @@ For more information, please refer to <http://unlicense.org/>
 static inline unsigned char negative(signed char b)
 {
     unsigned long long x = b; /* 18446744073709551361..18446744073709551615: yes; 0..255: no */
-    x = ct_barrier_u64(x);
+    x = ed25519_ct_barrier_u64(x);
     x >>= 63; /* 1: yes; 0: no */
     return (unsigned char)x;
 }

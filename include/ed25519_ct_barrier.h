@@ -26,7 +26,7 @@ For more information, please refer to <http://unlicense.org/>
 */
 
 /**
- * @file ct_barrier.h
+ * @file ed25519_ct_barrier.h
  * @brief Compiler optimization barriers for constant-time code.
  *
  * Prevents the compiler from reasoning about the value of a variable,
@@ -46,13 +46,13 @@ For more information, please refer to <http://unlicense.org/>
 
 #if defined(__GNUC__) || defined(__clang__)
 
-static inline uint32_t ct_barrier_u32(uint32_t x)
+static inline uint32_t ed25519_ct_barrier_u32(uint32_t x)
 {
     __asm__ __volatile__("" : "+r"(x));
     return x;
 }
 
-static inline uint64_t ct_barrier_u64(uint64_t x)
+static inline uint64_t ed25519_ct_barrier_u64(uint64_t x)
 {
     __asm__ __volatile__("" : "+r"(x));
     return x;
@@ -60,13 +60,13 @@ static inline uint64_t ct_barrier_u64(uint64_t x)
 
 #else
 
-static inline uint32_t ct_barrier_u32(uint32_t x)
+static inline uint32_t ed25519_ct_barrier_u32(uint32_t x)
 {
     volatile uint32_t v = x;
     return v;
 }
 
-static inline uint64_t ct_barrier_u64(uint64_t x)
+static inline uint64_t ed25519_ct_barrier_u64(uint64_t x)
 {
     volatile uint64_t v = x;
     return v;

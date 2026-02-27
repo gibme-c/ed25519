@@ -39,7 +39,7 @@ For more information, please refer to <http://unlicense.org/>
 #ifndef ED25519_FE_CMOV_H
 #define ED25519_FE_CMOV_H
 
-#include "ct_barrier.h"
+#include "ed25519_ct_barrier.h"
 #include "fe.h"
 
 /**
@@ -55,7 +55,7 @@ For more information, please refer to <http://unlicense.org/>
 #if ED25519_PLATFORM_64BIT
 static inline void fe_cmov(fe f, const fe g, unsigned int b)
 {
-    uint64_t mask = 0 - (uint64_t)ct_barrier_u32(b);
+    uint64_t mask = 0 - (uint64_t)ed25519_ct_barrier_u32(b);
     f[0] ^= mask & (f[0] ^ g[0]);
     f[1] ^= mask & (f[1] ^ g[1]);
     f[2] ^= mask & (f[2] ^ g[2]);
@@ -65,7 +65,7 @@ static inline void fe_cmov(fe f, const fe g, unsigned int b)
 #else
 static inline void fe_cmov(fe f, const fe g, unsigned int b)
 {
-    int32_t mask = -(int32_t)ct_barrier_u32(b);
+    int32_t mask = -(int32_t)ed25519_ct_barrier_u32(b);
     f[0] ^= mask & (f[0] ^ g[0]);
     f[1] ^= mask & (f[1] ^ g[1]);
     f[2] ^= mask & (f[2] ^ g[2]);
