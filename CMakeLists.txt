@@ -232,6 +232,10 @@ add_library(ed25519 STATIC ${ED25519_SRC})
 target_include_directories(ed25519 PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
+# Consumers treat our headers as system headers (suppresses their warnings)
+target_include_directories(ed25519 SYSTEM INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
 set_target_properties(ed25519 PROPERTIES
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
@@ -406,7 +410,7 @@ if(BUILD_TESTS)
     message(STATUS "ED25519: Building unit tests")
 
     add_executable(ed25519-tests src/tests.cpp)
-    target_link_libraries(ed25519-tests ed25519)
+    target_link_libraries(ed25519-tests PRIVATE ed25519)
     ed25519_apply_exe_flags(ed25519-tests)
 endif()
 
@@ -418,7 +422,7 @@ if(BUILD_TOOLS)
     message(STATUS "ED25519: Building test vector generator")
 
     add_executable(ed25519-gen-testvectors tools/gen_test_vectors.cpp)
-    target_link_libraries(ed25519-gen-testvectors ed25519)
+    target_link_libraries(ed25519-gen-testvectors PRIVATE ed25519)
     ed25519_apply_exe_flags(ed25519-gen-testvectors)
 endif()
 
@@ -426,6 +430,6 @@ if(BUILD_BENCHMARKS)
     message(STATUS "ED25519: Building benchmarks")
 
     add_executable(ed25519-benchmark src/benchmark.cpp)
-    target_link_libraries(ed25519-benchmark ed25519)
+    target_link_libraries(ed25519-benchmark PRIVATE ed25519)
     ed25519_apply_exe_flags(ed25519-benchmark)
 endif()
