@@ -4,9 +4,9 @@
 
 A C++ static library for [Ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) elliptic curve cryptography primitives, based on the SUPERCOP ref10 reference implementation.
 
-Ed25519 is a high-speed, high-security elliptic curve used for digital signatures and key exchange. It operates on the twisted Edwards curve **-x² + y² = 1 + d·x²·y²** over the prime field **GF(2²⁵⁵ - 19)** (hence the name). This library provides the low-level building blocks — field arithmetic, curve point operations, scalar math, and ristretto255 — so you can build protocols on top without worrying about the math underneath.
+Ed25519 is a high-speed, high-security elliptic curve used for digital signatures and key exchange. It operates on the twisted Edwards curve **-x² + y² = 1 + d·x²·y²** over the prime field **GF(2²⁵⁵ - 19)** (hence the name). This library provides the low-level building blocks — field arithmetic, curve point operations, scalar math, X25519 key exchange, and ristretto255 — so you can build protocols on top without worrying about the math underneath.
 
-**This is not a signature library.** There's no `sign()` or `verify()` function here. Instead, you get the primitives that those operations are built from: constant-time scalar multiplication, multi-scalar multiplication, hash-to-curve, subgroup checking, and so on. If you need a turnkey Ed25519 signature scheme, look at [libsodium](https://doc.libsodium.org/) or [OpenSSL](https://www.openssl.org/). If you need to *build* a protocol — Schnorr signatures, VRFs, Bulletproofs, threshold schemes — this library gives you the building blocks with full control over the math.
+**This is not a signature library.** There's no `sign()` or `verify()` function here. Instead, you get the primitives that those operations are built from: constant-time scalar multiplication, multi-scalar multiplication, Diffie-Hellman key exchange, hash-to-curve, subgroup checking, and so on. If you need a turnkey Ed25519 signature scheme, look at [libsodium](https://doc.libsodium.org/) or [OpenSSL](https://www.openssl.org/). If you need to *build* a protocol — Schnorr signatures, VRFs, Bulletproofs, threshold schemes — this library gives you the building blocks with full control over the math.
 
 ## Features
 
@@ -23,20 +23,24 @@ Ed25519 is a high-speed, high-security elliptic curve used for digital signature
 - **Multi-scalar multiplication** — compute s₁·P₁ + s₂·P₂ + ... + sₙ·Pₙ in a single pass using Straus (n≤32) and Pippenger (n>32) algorithms, with logarithmic speedup over serial
 - **Batch scalar multiplication** — process N independent operations in parallel via AVX2 (4-way) and AVX-512 IFMA (8-way) horizontal SIMD
 
+### Key Exchange
+
+- **X25519 Diffie-Hellman** ([RFC 7748](https://www.rfc-editor.org/rfc/rfc7748.html)) — constant-time Montgomery ladder on Curve25519 for key agreement, with automatic scalar clamping and secure erasure of intermediates
+
 ### Curve Utilities
 
 - **Cofactor handling** — `ge_mul8` clears the cofactor, `sc_clamp` applies RFC 8032 bit clamping
 - **Hash-to-curve** — Elligator-like mapping from arbitrary bytes to curve points (`ge_fromfe_frombytes_vartime`)
-- **Subgroup checking** — verify points lie in the prime-order subgroup
+- **Subgroup checking** — verify points lie in the prime-order subgroup (`ge_check_subgroup_precomp_vartime`, `ge_check_subgroup_precomp_negate_vartime`)
 - **Curve form conversion** — `ge_p3_to_wei25519` extracts the Wei25519 (short-Weierstrass) X-coordinate from an Ed25519 point, bridging Edwards and Weierstrass representations
 
 ### Higher-Level Abstractions
 
-- **Ristretto255** (RFC 9496) — prime-order group abstraction over Ed25519, with encode, decode, equality, and hash-to-group operations
+- **Ristretto255** ([RFC 9496](https://www.rfc-editor.org/rfc/rfc9496.html)) — prime-order group abstraction over Ed25519, with encode, decode, equality, and hash-to-group operations
 
 ### Performance and Security
 
-- **SIMD acceleration** (x86_64) — runtime-dispatched AVX2 and AVX-512 IFMA backends for constant-time scalar multiplication and verification, with automatic CPU feature detection via CPUID
+- **SIMD acceleration** (x86_64) — runtime-dispatched AVX2 and AVX-512 IFMA backends for scalar multiplication, verification, and multi-scalar multiplication, with automatic CPU feature detection via CPUID
 - **Secure memory erasure** — `ed25519_secure_erase` zeros secret data using platform-specific mechanisms the compiler can't optimize away
 - **Cross-platform** — MSVC, GCC, Clang, AppleClang, MinGW
 
@@ -61,7 +65,6 @@ cmake --build build --config Release -j
 | `BUILD_TESTS` | `OFF` | Build the unit tests (`ed25519-tests`) |
 | `BUILD_BENCHMARKS` | `OFF` | Build the benchmark tool (`ed25519-benchmark`) |
 | `FORCE_PORTABLE` | `OFF` | Force the 32-bit portable implementation on 64-bit platforms (for testing/comparison) |
-| `ARCH` | `native` | Target CPU architecture for `-march` (`native`, `default`, or a specific arch) |
 | `ENABLE_LTO` | `OFF` | Enable link-time optimization |
 | `ENABLE_AVX2` | `ON`* | Enable AVX2 SIMD backend with runtime dispatch |
 | `ENABLE_AVX512` | `ON`* | Enable AVX-512 IFMA SIMD backend with runtime dispatch |
@@ -93,9 +96,9 @@ add_subdirectory(ed25519)
 target_link_libraries(your_target ed25519)
 ```
 
-### Quick Example
+### Quick Examples
 
-A minimal Schnorr-style signature using the library primitives:
+**Schnorr-style signature** using the library primitives:
 
 ```cpp
 #include "ed25519.h"
@@ -126,7 +129,32 @@ bool verify(const ge_p3 *A, const unsigned char R[32],
 }
 ```
 
-On x86_64, initialize SIMD dispatch before any crypto operations:
+**X25519 key exchange:**
+
+```cpp
+#include "x25519.h"
+#include "ed25519_secure_erase.h"
+
+// Alice generates a keypair
+unsigned char alice_priv[32], alice_pub[32];
+// ... fill alice_priv with 32 random bytes ...
+x25519_base(alice_pub, alice_priv);  // public key = scalar * basepoint(9)
+
+// Bob does the same
+unsigned char bob_priv[32], bob_pub[32];
+// ... fill bob_priv with 32 random bytes ...
+x25519_base(bob_pub, bob_priv);
+
+// Both compute the same shared secret
+unsigned char shared[32];
+x25519(shared, alice_priv, bob_pub);   // Alice's side
+// x25519(shared, bob_priv, alice_pub);  // Bob's side — same result
+
+ed25519_secure_erase(alice_priv, 32);
+ed25519_secure_erase(shared, 32);
+```
+
+**SIMD dispatch** (x86_64) — initialize before any crypto operations:
 
 ```cpp
 // Fast heuristic — picks IFMA > AVX2 > baseline
@@ -136,7 +164,7 @@ ed25519_init();
 ed25519_init(true);
 ```
 
-Both modes are thread-safe and only execute once; subsequent calls are no-ops.
+Both modes are thread-safe and only execute once; subsequent calls are no-ops. On non-x86_64 platforms, `ed25519_init()` is a no-op.
 
 ## Architecture
 
@@ -157,7 +185,7 @@ The library uses two levels of dispatch to get the best performance on each plat
 
 Both representations are 40 bytes, so the `fe` type has the same layout regardless of backend. The `FORCE_PORTABLE` CMake option forces the 32-bit path on 64-bit platforms for testing.
 
-**Runtime dispatch** (x86_64 only) selects SIMD-accelerated implementations for the eight hot-path scalar multiplication functions:
+**Runtime dispatch** (x86_64 only) selects SIMD-accelerated implementations for ten hot-path functions:
 
 - `ge_scalarmult_ct` — variable-base, constant-time
 - `ge_scalarmult_base_ct` — fixed-base, constant-time
@@ -167,6 +195,8 @@ Both representations are 40 bytes, so the `fe` type has the same layout regardle
 - `ge_double_scalarmult_base_negate_vartime_batch` — batch verification
 - `ge_double_scalarmult_negate_vartime_batch_ss` — batch DSM with shared scalars (returns `ge_p2`)
 - `ge_double_scalarmult_negate_vartime_batch_ss_p3` — batch DSM with shared scalars (returns `ge_p3`, avoids expensive p2-to-p3 conversion)
+- `ge_multiscalar_mul_vartime` — multi-scalar multiplication
+- `ge_multiscalar_mul_base_vartime` — multi-scalar multiplication with base point
 
 CPU features (AVX2, AVX-512F, AVX-512 IFMA) are detected via CPUID+XGETBV at startup. Call `ed25519_init()` for fast heuristic selection, or `ed25519_init(true)` to benchmark all available implementations and pick the fastest per-function.
 
@@ -193,10 +223,12 @@ This split is handled automatically by the `fe51_chain.h`, `fe25_chain.h`, `fe10
 
 Arithmetic on elements of GF(2²⁵⁵ - 19). These are the coordinates of points on the curve — every point operation ultimately boils down to field element math.
 
-- **Arithmetic**: `fe_add`, `fe_sub`, `fe_mul`, `fe_sq`, `fe_sq2`, `fe_neg`
+- **Arithmetic**: `fe_add`, `fe_sub`, `fe_mul`, `fe_sq`, `fe_sq2`, `fe_neg`, `fe_mul121666`
 - **Higher-order**: `fe_invert`, `fe_pow22523`, `fe_divpowm1`
 - **Serialization**: `fe_frombytes`, `fe_tobytes`
 - **Utilities**: `fe_copy`, `fe_cmov`, `fe_0`, `fe_1`, `fe_isnegative`, `fe_isnonzero`
+
+`fe_mul121666` multiplies by the Montgomery curve constant (A+2)/4 = 121666, used internally by X25519.
 
 ### Group Elements (`ge_*`)
 
@@ -205,6 +237,8 @@ Points on the Ed25519 curve. Multiple internal representations (projective, exte
 **Point types**: `ge_p2` (projective), `ge_p3` (extended), `ge_p1p1` (completed), `ge_precomp`, `ge_cached`
 
 **Arithmetic**: `ge_add`, `ge_sub`, `ge_madd`, `ge_msub`, `ge_p2_dbl`, `ge_p3_dbl`, `ge_mul8`
+
+**Conversions**: `ge_p1p1_to_p2`, `ge_p1p1_to_p3`, `ge_p3_to_p2`, `ge_p3_to_cached`, `ge_p2_to_p3`
 
 **Scalar multiplication**:
 - `ge_scalarmult_base_ct` — fixed-base, constant-time
@@ -223,11 +257,15 @@ Points on the Ed25519 curve. Multiple internal representations (projective, exte
 
 **Verification**: `ge_double_scalarmult_negate_vartime`, `ge_double_scalarmult_base_negate_vartime`
 
+**Precomputation**: `ge_dsm_precomp` — builds a precomputation table for a point, used by the double scalar multiplication functions
+
 **Serialization**: `ge_tobytes`, `ge_p3_tobytes`, `ge_frombytes_vartime`
 
 **Curve form conversion**: `ge_p3_to_wei25519` — extracts the Wei25519 short-Weierstrass X-coordinate from a `ge_p3` point, using the birational map X_wei = (Z+Y)/(Z-Y) + A/3 where A=486662
 
 **Hash-to-curve**: `ge_fromfe_frombytes_vartime`
+
+**Subgroup checking**: `ge_check_subgroup_precomp_vartime`, `ge_check_subgroup_precomp_negate_vartime` — verify that l·A = 0 (identity) using precomputed DSM tables
 
 ### Scalars (`sc_*`)
 
@@ -246,17 +284,27 @@ Prime-order group abstraction over the Ed25519 curve ([RFC 9496](https://www.rfc
 - **Comparison**: `ristretto255_equals` — constant-time equivalence check without encoding
 - **Hash-to-group**: `ristretto255_from_uniform_bytes` — maps 64 uniform bytes (e.g. SHA-512 output) to a ristretto255 point via Elligator 2
 
+### X25519 Diffie-Hellman (`x25519_*`)
+
+Key exchange on the Montgomery form of Curve25519 ([RFC 7748](https://www.rfc-editor.org/rfc/rfc7748.html)). Uses a constant-time Montgomery ladder with automatic scalar clamping.
+
+- **`x25519(shared_secret, scalar, point)`** — Compute the shared secret: `shared_secret = clamp(scalar) * point`
+- **`x25519_base(public_key, scalar)`** — Compute the public key: `public_key = clamp(scalar) * basepoint(9)`
+
+Platform-agnostic: composed entirely of `fe_*` operations, so no x64/portable split is needed. All intermediate values are securely erased before return.
+
 ### Runtime Dispatch (`ed25519_*`)
 
 On x86_64, SIMD-accelerated backends are selected at runtime based on detected CPU features.
 
-- **`ed25519_init(bool autotune = false)`** — Initializes the dispatch table. Without `autotune`, uses CPUID heuristics to select a good backend (~microseconds). With `autotune=true`, benchmarks all candidates and selects the empirically fastest per function (~1-2 seconds). Thread-safe; only the first call executes.
-- **`ed25519_has_avx2()`**, **`ed25519_has_avx512ifma()`** — Query detected CPU features.
+- **`ed25519_init(bool autotune = false)`** — Initializes the dispatch table. Without `autotune`, uses CPUID heuristics to select a good backend (~microseconds). With `autotune=true`, benchmarks all candidates and selects the empirically fastest per function (~1-2 seconds). Thread-safe; only the first call executes. On non-x86_64 platforms, this is a no-op.
+- **`ed25519_cpu_features()`** — Returns a bitmask of detected CPU features (`ED25519_CPU_AVX2`, `ED25519_CPU_AVX512F`, `ED25519_CPU_AVX512IFMA`).
+- **`ed25519_has_avx2()`**, **`ed25519_has_avx512f()`**, **`ed25519_has_avx512ifma()`** — Query individual CPU features.
 - **`ed25519_get_dispatch()`** — Returns a const reference to the dispatch table (read-only; only `ed25519_init` can modify it).
 
 ### Secure Erasure
 
-- **`ed25519_secure_erase`** — Zeroes memory in a way the compiler can't optimize away. Uses `SecureZeroMemory` (MSVC/Windows), `memset_s` (C11), `explicit_bzero` (glibc 2.25+, OpenBSD, FreeBSD), or a volatile function pointer to `memset` as a last resort.
+- **`ed25519_secure_erase(pointer, length)`** — Zeroes memory in a way the compiler can't optimize away. Uses `SecureZeroMemory` (MSVC/Windows), `memset_s` (C11), `explicit_bzero` (glibc 2.25+, OpenBSD, FreeBSD), or a volatile function pointer to `memset` as a last resort.
 
 ## Testing
 
