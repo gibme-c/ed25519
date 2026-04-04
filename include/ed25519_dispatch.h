@@ -34,7 +34,7 @@ For more information, please refer to <http://unlicense.org/>
  *
  * - Without initialization: x64/portable baseline is used (always correct).
  * - After ed25519_init(): CPUID-based heuristic selects a good backend.
- * - After ed25519_autotune(): per-function benchmarking selects the optimal backend.
+ * - After ed25519_init(true): per-function benchmarking selects the optimal backend.
  */
 
 #ifndef ED25519_DISPATCH_H
@@ -49,8 +49,8 @@ For more information, please refer to <http://unlicense.org/>
 /**
  * @brief Function pointer table for dispatchable scalar multiplication operations.
  *
- * Each pointer targets the implementation selected by ed25519_init() or
- * ed25519_autotune(). Initialized to x64 baseline at program startup.
+ * Each pointer targets the implementation selected by ed25519_init().
+ * Initialized to x64 baseline at program startup.
  */
 struct ed25519_dispatch_table
 {
@@ -81,40 +81,27 @@ struct ed25519_dispatch_table
 /**
  * @brief Returns a const reference to the dispatch table.
  *
- * The returned reference is read-only -- only ed25519_init() and
- * ed25519_autotune() can modify the internal table.
+ * The returned reference is read-only -- only ed25519_init() modifies
+ * the internal table.
  */
 const ed25519_dispatch_table &ed25519_get_dispatch();
 
 /**
- * @brief Initialize dispatch table using CPUID-based heuristics.
+ * @brief Initialize dispatch table.
  *
- * Detects CPU features (AVX2, AVX-512 IFMA) and selects the best
- * implementation for each function based on known performance characteristics.
- * Fast (~microseconds). If never called, x64 baseline is used.
+ * @param autotune If false (default), uses CPUID heuristics to select a good
+ *                 backend (~microseconds). If true, benchmarks all candidates
+ *                 and selects the empirically fastest per function (~1-2 seconds).
  *
- * Thread-safe: may be called from multiple threads; only the first call
- * executes, subsequent calls are no-ops.
+ * Thread-safe: concurrent callers block until the first call completes.
+ * Only the first call executes; subsequent calls are no-ops regardless of
+ * the autotune parameter.
  */
-void ed25519_init(void);
-
-/**
- * @brief Benchmark all available implementations and select the fastest per function.
- *
- * Runs each candidate implementation multiple times, measures wall-clock time,
- * and sets each dispatch slot to the empirically fastest option. Takes ~1-2 seconds.
- * Recommended for latency-sensitive applications (Pedersen commitments, bulletproofs,
- * ring signatures) where per-function optimal selection matters.
- *
- * Thread-safe: may be called from multiple threads; only the first call
- * executes, subsequent calls are no-ops.
- */
-void ed25519_autotune(void);
+void ed25519_init(bool autotune = false);
 
 #else
 
-static inline void ed25519_init(void) {}
-static inline void ed25519_autotune(void) {}
+static inline void ed25519_init(bool = false) {}
 
 #endif // ED25519_SIMD
 

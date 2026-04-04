@@ -264,15 +264,11 @@ int ristretto255_decode(ge_p3 *p, const unsigned char *s)
     unsigned char s_check[32];
     fe_tobytes(s_check, s_fe);
 
-    unsigned int diff = 0;
+    unsigned int reject = 0;
     for (int i = 0; i < 32; i++)
-        diff |= s[i] ^ s_check[i];
+        reject |= s[i] ^ s_check[i];
 
-    if (diff != 0)
-        return -1;
-
-    if (fe_isnegative(s_fe))
-        return -1;
+    reject |= (unsigned int)fe_isnegative(s_fe);
 
     fe_1(one);
 
@@ -304,9 +300,10 @@ int ristretto255_decode(ge_p3 *p, const unsigned char *s)
     fe_mul(y, u1, den_y);
     fe_mul(t, x, y);
 
-    // 7. Reject if !was_square || IS_NEGATIVE(t) || y == 0
-    // Use bitwise OR to prevent short-circuit timing variation (CT discipline)
-    if ((!was_square) | fe_isnegative(t) | (!fe_isnonzero(y)))
+    // 7. Reject if any check failed (constant-time: always execute full computation)
+    reject |= (unsigned int)(!was_square) | (unsigned int)fe_isnegative(t) | (unsigned int)(!fe_isnonzero(y));
+
+    if (reject)
         return -1;
 
     // 8. Return (x, y, 1, t)

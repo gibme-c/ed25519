@@ -196,76 +196,11 @@ const ed25519_dispatch_table &ed25519_get_dispatch()
     return dispatch_table;
 }
 
-// ── CPUID-based heuristic initialization ──
+// ── Initialization state: 0=pending, 1=running, 2=done ──
 
-static std::atomic<bool> init_done {false};
-static std::atomic<bool> autotune_done {false};
+static std::atomic<int> init_state{0};
 
-void ed25519_init(void)
-{
-    bool expected = false;
-    if (init_done.compare_exchange_strong(expected, true))
-    {
-        // Build the complete dispatch table in a local variable, then assign
-        // as a single struct copy. This avoids a data race where another thread
-        // could read a partially-updated global table via ed25519_get_dispatch().
-        ed25519_dispatch_table tbl = {
-            ge_scalarmult_x64_ct,
-            ge_scalarmult_base_ct_x64,
-            ge_double_scalarmult_base_negate_vartime_x64,
-            ge_double_scalarmult_negate_vartime_x64,
-            ge_scalarmult_ct_batch_x64,
-            ge_dsm_base_negate_vt_batch_x64,
-            ge_dsm_negate_vt_batch_ss_x64,
-            ge_dsm_negate_vt_batch_ss_p3_x64,
-            ge_msm_vartime_x64,
-            ge_msm_base_vartime_x64,
-        };
-
-        const uint32_t features = ed25519_cpu_features();
-
-        // IFMA is the fastest overall backend when available (especially on MSVC
-        // where it avoids uint128 struct emulation, and after lazy normalization
-        // eliminated the overhead that previously penalized GCC).
-#if !ED25519_NO_AVX512
-        if (features & ED25519_CPU_AVX512IFMA)
-        {
-            tbl.scalarmult_ct = ge_scalarmult_ifma_ct;
-            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_ifma;
-            tbl.dsm_base_negate_vt = ge_double_scalarmult_base_negate_vartime_ifma;
-            tbl.dsm_negate_vt = ge_double_scalarmult_negate_vartime_ifma;
-            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_ifma;
-            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_ifma;
-            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_ifma;
-            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_ifma;
-            tbl.msm_vartime = ge_msm_vartime_ifma;
-            tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
-        }
-        else
-#endif
-        // AVX2 available for CT functions and batch operations.
-#if !ED25519_NO_AVX2
-            if (features & ED25519_CPU_AVX2)
-        {
-            tbl.scalarmult_ct = ge_scalarmult_avx2_ct;
-            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_avx2;
-            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_avx2;
-            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_avx2;
-            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_avx2;
-            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_avx2;
-            tbl.msm_vartime = ge_msm_vartime_avx2;
-            tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
-        }
-#endif
-
-        (void)features;
-
-        dispatch_table = tbl;
-        std::atomic_thread_fence(std::memory_order_release);
-    }
-}
-
-// ── Auto-tune implementation ──
+// ── Auto-tune benchmark helpers ──
 
 namespace
 {
@@ -477,346 +412,407 @@ namespace
 
 } // anonymous namespace
 
-void ed25519_autotune(void)
+// ── Merged init + autotune ──
+
+void ed25519_init(bool autotune)
 {
-    bool expected = false;
-    if (autotune_done.compare_exchange_strong(expected, true))
+    if (init_state.load(std::memory_order_acquire) == 2)
+        return; // fast path: already initialized
+
+    int expected = 0;
+    if (init_state.compare_exchange_strong(expected, 1, std::memory_order_acq_rel))
     {
-        // Build the complete dispatch table in a local variable, then assign
-        // as a single struct copy with a release fence.
-        ed25519_dispatch_table tbl = dispatch_table;
+        // Won the race — build table locally, then publish atomically.
+        ed25519_dispatch_table tbl = {
+            ge_scalarmult_x64_ct,
+            ge_scalarmult_base_ct_x64,
+            ge_double_scalarmult_base_negate_vartime_x64,
+            ge_double_scalarmult_negate_vartime_x64,
+            ge_scalarmult_ct_batch_x64,
+            ge_dsm_base_negate_vt_batch_x64,
+            ge_dsm_negate_vt_batch_ss_x64,
+            ge_dsm_negate_vt_batch_ss_p3_x64,
+            ge_msm_vartime_x64,
+            ge_msm_base_vartime_x64,
+        };
 
         const uint32_t features = ed25519_cpu_features();
 
-        // Generate test inputs using x64 baseline (avoids circular dispatch dependency)
-        unsigned char s1[32], s2[32];
-        for (int i = 0; i < 32; i++)
+        // CPUID heuristic: IFMA > AVX2 > x64 baseline
+#if !ED25519_NO_AVX512
+        if (features & ED25519_CPU_AVX512IFMA)
         {
-            s1[i] = static_cast<unsigned char>(i + 1);
-            s2[i] = static_cast<unsigned char>(i + 65);
+            tbl.scalarmult_ct = ge_scalarmult_ifma_ct;
+            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_ifma;
+            tbl.dsm_base_negate_vt = ge_double_scalarmult_base_negate_vartime_ifma;
+            tbl.dsm_negate_vt = ge_double_scalarmult_negate_vartime_ifma;
+            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_ifma;
+            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_ifma;
+            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_ifma;
+            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_ifma;
+            tbl.msm_vartime = ge_msm_vartime_ifma;
+            tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
         }
-        sc_clamp(s1);
-        sc_clamp(s2);
-
-        ge_p1p1 tmp;
-        ge_p3 test_point;
-        ge_scalarmult_base_ct_x64(&tmp, s1);
-        ge_p1p1_to_p3(&test_point, &tmp);
-
-        ge_dsmp test_dsmp;
-        ge_dsm_precomp(test_dsmp, &test_point);
-
-        // ── ge_scalarmult_ct ──
-        {
-            int64_t best_time = bench_scalarmult_ct(ge_scalarmult_x64_ct, s1, &test_point);
-            decltype(tbl.scalarmult_ct) best_fn = ge_scalarmult_x64_ct;
-
+        else
+#endif
 #if !ED25519_NO_AVX2
             if (features & ED25519_CPU_AVX2)
-            {
-                auto t = bench_scalarmult_ct(ge_scalarmult_avx2_ct, s1, &test_point);
-                if (t < best_time)
-                {
-                    best_time = t;
-                    best_fn = ge_scalarmult_avx2_ct;
-                }
-            }
-#endif
-#if !ED25519_NO_AVX512
-            if (features & ED25519_CPU_AVX512IFMA)
-            {
-                auto t = bench_scalarmult_ct(ge_scalarmult_ifma_ct, s1, &test_point);
-                if (t < best_time)
-                {
-                    best_time = t;
-                    best_fn = ge_scalarmult_ifma_ct;
-                }
-            }
-#endif
-            tbl.scalarmult_ct = best_fn;
-        }
-
-        // ── ge_scalarmult_base_ct ──
         {
-            int64_t best_time = bench_scalarmult_base_ct(ge_scalarmult_base_ct_x64, s1);
-            decltype(tbl.scalarmult_base_ct) best_fn = ge_scalarmult_base_ct_x64;
+            tbl.scalarmult_ct = ge_scalarmult_avx2_ct;
+            tbl.scalarmult_base_ct = ge_scalarmult_base_ct_avx2;
+            tbl.scalarmult_ct_batch = ge_scalarmult_ct_batch_avx2;
+            tbl.dsm_base_negate_vt_batch = ge_dsm_base_negate_vt_batch_avx2;
+            tbl.dsm_negate_vt_batch_ss = ge_dsm_negate_vt_batch_ss_avx2;
+            tbl.dsm_negate_vt_batch_ss_p3 = ge_dsm_negate_vt_batch_ss_p3_avx2;
+            tbl.msm_vartime = ge_msm_vartime_avx2;
+            tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
+        }
+#endif
+
+        if (autotune)
+        {
+            // Generate test inputs using x64 baseline (avoids circular dispatch dependency)
+            unsigned char s1[32], s2[32];
+            for (int i = 0; i < 32; i++)
+            {
+                s1[i] = static_cast<unsigned char>(i + 1);
+                s2[i] = static_cast<unsigned char>(i + 65);
+            }
+            sc_clamp(s1);
+            sc_clamp(s2);
+
+            ge_p1p1 tmp;
+            ge_p3 test_point;
+            ge_scalarmult_base_ct_x64(&tmp, s1);
+            ge_p1p1_to_p3(&test_point, &tmp);
+
+            ge_dsmp test_dsmp;
+            ge_dsm_precomp(test_dsmp, &test_point);
+
+            // ── ge_scalarmult_ct ──
+            {
+                int64_t best_time = bench_scalarmult_ct(ge_scalarmult_x64_ct, s1, &test_point);
+                decltype(tbl.scalarmult_ct) best_fn = ge_scalarmult_x64_ct;
 
 #if !ED25519_NO_AVX2
-            if (features & ED25519_CPU_AVX2)
-            {
-                auto t = bench_scalarmult_base_ct(ge_scalarmult_base_ct_avx2, s1);
-                if (t < best_time)
+                if (features & ED25519_CPU_AVX2)
                 {
-                    best_time = t;
-                    best_fn = ge_scalarmult_base_ct_avx2;
+                    auto t = bench_scalarmult_ct(ge_scalarmult_avx2_ct, s1, &test_point);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_scalarmult_avx2_ct;
+                    }
                 }
-            }
 #endif
 #if !ED25519_NO_AVX512
-            if (features & ED25519_CPU_AVX512IFMA)
-            {
-                auto t = bench_scalarmult_base_ct(ge_scalarmult_base_ct_ifma, s1);
-                if (t < best_time)
+                if (features & ED25519_CPU_AVX512IFMA)
                 {
-                    best_time = t;
-                    best_fn = ge_scalarmult_base_ct_ifma;
+                    auto t = bench_scalarmult_ct(ge_scalarmult_ifma_ct, s1, &test_point);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_scalarmult_ifma_ct;
+                    }
                 }
-            }
 #endif
-            tbl.scalarmult_base_ct = best_fn;
-        }
-
-        // ── ge_double_scalarmult_base_negate_vartime ──
-        {
-            int64_t best_time =
-                bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_x64, s1, &test_point, s2);
-            decltype(tbl.dsm_base_negate_vt) best_fn = ge_double_scalarmult_base_negate_vartime_x64;
-            (void)best_time;
-
-#if !ED25519_NO_AVX512
-            if (features & ED25519_CPU_AVX512IFMA)
-            {
-                auto t = bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_ifma, s1, &test_point, s2);
-                if (t < best_time)
-                {
-                    best_time = t;
-                    best_fn = ge_double_scalarmult_base_negate_vartime_ifma;
-                }
-            }
-#endif
-            tbl.dsm_base_negate_vt = best_fn;
-        }
-
-        // ── ge_double_scalarmult_negate_vartime ──
-        {
-            int64_t best_time =
-                bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_x64, s1, &test_point, s2, test_dsmp);
-            decltype(tbl.dsm_negate_vt) best_fn = ge_double_scalarmult_negate_vartime_x64;
-            (void)best_time;
-
-#if !ED25519_NO_AVX512
-            if (features & ED25519_CPU_AVX512IFMA)
-            {
-                auto t = bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_ifma, s1, &test_point, s2, test_dsmp);
-                if (t < best_time)
-                {
-                    best_time = t;
-                    best_fn = ge_double_scalarmult_negate_vartime_ifma;
-                }
-            }
-#endif
-            tbl.dsm_negate_vt = best_fn;
-        }
-
-        // ── Batch operations: ge_scalarmult_ct_batch ──
-        {
-            constexpr size_t BATCH_N = 16;
-            unsigned char batch_scalars[BATCH_N * 32];
-            ge_p3 batch_points[BATCH_N];
-            for (size_t i = 0; i < BATCH_N; i++)
-            {
-                for (int j = 0; j < 32; j++)
-                    batch_scalars[i * 32 + j] = static_cast<unsigned char>(j + i + 1);
-                sc_clamp(batch_scalars + i * 32);
-                ge_p1p1 tmp2;
-                ge_scalarmult_base_ct_x64(&tmp2, batch_scalars + i * 32);
-                ge_p1p1_to_p3(&batch_points[i], &tmp2);
+                tbl.scalarmult_ct = best_fn;
             }
 
-            int64_t best_time =
-                bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_x64, batch_scalars, batch_points, BATCH_N);
-            decltype(tbl.scalarmult_ct_batch) best_fn = ge_scalarmult_ct_batch_x64;
+            // ── ge_scalarmult_base_ct ──
+            {
+                int64_t best_time = bench_scalarmult_base_ct(ge_scalarmult_base_ct_x64, s1);
+                decltype(tbl.scalarmult_base_ct) best_fn = ge_scalarmult_base_ct_x64;
 
 #if !ED25519_NO_AVX2
-            if (features & ED25519_CPU_AVX2)
-            {
-                auto t = bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_avx2, batch_scalars, batch_points, BATCH_N);
-                if (t < best_time)
+                if (features & ED25519_CPU_AVX2)
                 {
-                    best_time = t;
-                    best_fn = ge_scalarmult_ct_batch_avx2;
+                    auto t = bench_scalarmult_base_ct(ge_scalarmult_base_ct_avx2, s1);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_scalarmult_base_ct_avx2;
+                    }
                 }
-            }
 #endif
 #if !ED25519_NO_AVX512
-            if (features & ED25519_CPU_AVX512IFMA)
-            {
-                auto t = bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_ifma, batch_scalars, batch_points, BATCH_N);
-                if (t < best_time)
+                if (features & ED25519_CPU_AVX512IFMA)
                 {
-                    best_time = t;
-                    best_fn = ge_scalarmult_ct_batch_ifma;
+                    auto t = bench_scalarmult_base_ct(ge_scalarmult_base_ct_ifma, s1);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_scalarmult_base_ct_ifma;
+                    }
                 }
-            }
 #endif
-            tbl.scalarmult_ct_batch = best_fn;
+                tbl.scalarmult_base_ct = best_fn;
+            }
 
-            // ── Batch DSM ──
+            // ── ge_double_scalarmult_base_negate_vartime ──
             {
-                unsigned char batch_b_scalars[BATCH_N * 32];
+                int64_t best_time =
+                    bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_x64, s1, &test_point, s2);
+                decltype(tbl.dsm_base_negate_vt) best_fn = ge_double_scalarmult_base_negate_vartime_x64;
+                (void)best_time;
+
+#if !ED25519_NO_AVX512
+                if (features & ED25519_CPU_AVX512IFMA)
+                {
+                    auto t =
+                        bench_dsm_base_negate_vt(ge_double_scalarmult_base_negate_vartime_ifma, s1, &test_point, s2);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_double_scalarmult_base_negate_vartime_ifma;
+                    }
+                }
+#endif
+                tbl.dsm_base_negate_vt = best_fn;
+            }
+
+            // ── ge_double_scalarmult_negate_vartime ──
+            {
+                int64_t best_time =
+                    bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_x64, s1, &test_point, s2, test_dsmp);
+                decltype(tbl.dsm_negate_vt) best_fn = ge_double_scalarmult_negate_vartime_x64;
+                (void)best_time;
+
+#if !ED25519_NO_AVX512
+                if (features & ED25519_CPU_AVX512IFMA)
+                {
+                    auto t = bench_dsm_negate_vt(
+                        ge_double_scalarmult_negate_vartime_ifma, s1, &test_point, s2, test_dsmp);
+                    if (t < best_time)
+                    {
+                        best_time = t;
+                        best_fn = ge_double_scalarmult_negate_vartime_ifma;
+                    }
+                }
+#endif
+                tbl.dsm_negate_vt = best_fn;
+            }
+
+            // ── Batch operations: ge_scalarmult_ct_batch ──
+            {
+                constexpr size_t BATCH_N = 16;
+                unsigned char batch_scalars[BATCH_N * 32];
+                ge_p3 batch_points[BATCH_N];
                 for (size_t i = 0; i < BATCH_N; i++)
                 {
                     for (int j = 0; j < 32; j++)
-                        batch_b_scalars[i * 32 + j] = static_cast<unsigned char>(j + i + 65);
-                    sc_clamp(batch_b_scalars + i * 32);
+                        batch_scalars[i * 32 + j] = static_cast<unsigned char>(j + i + 1);
+                    sc_clamp(batch_scalars + i * 32);
+                    ge_p1p1 tmp2;
+                    ge_scalarmult_base_ct_x64(&tmp2, batch_scalars + i * 32);
+                    ge_p1p1_to_p3(&batch_points[i], &tmp2);
                 }
 
-                int64_t best_time2 = bench_dsm_base_negate_vt_batch(
-                    ge_dsm_base_negate_vt_batch_x64, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
-                decltype(tbl.dsm_base_negate_vt_batch) best_fn2 = ge_dsm_base_negate_vt_batch_x64;
+                int64_t best_time =
+                    bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_x64, batch_scalars, batch_points, BATCH_N);
+                decltype(tbl.scalarmult_ct_batch) best_fn = ge_scalarmult_ct_batch_x64;
 
 #if !ED25519_NO_AVX2
                 if (features & ED25519_CPU_AVX2)
                 {
-                    auto t = bench_dsm_base_negate_vt_batch(
-                        ge_dsm_base_negate_vt_batch_avx2, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
-                    if (t < best_time2)
+                    auto t =
+                        bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_avx2, batch_scalars, batch_points, BATCH_N);
+                    if (t < best_time)
                     {
-                        best_time2 = t;
-                        best_fn2 = ge_dsm_base_negate_vt_batch_avx2;
+                        best_time = t;
+                        best_fn = ge_scalarmult_ct_batch_avx2;
                     }
                 }
 #endif
 #if !ED25519_NO_AVX512
                 if (features & ED25519_CPU_AVX512IFMA)
                 {
-                    auto t = bench_dsm_base_negate_vt_batch(
-                        ge_dsm_base_negate_vt_batch_ifma, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
-                    if (t < best_time2)
+                    auto t =
+                        bench_scalarmult_ct_batch(ge_scalarmult_ct_batch_ifma, batch_scalars, batch_points, BATCH_N);
+                    if (t < best_time)
                     {
-                        best_time2 = t;
-                        best_fn2 = ge_dsm_base_negate_vt_batch_ifma;
+                        best_time = t;
+                        best_fn = ge_scalarmult_ct_batch_ifma;
                     }
                 }
 #endif
-                tbl.dsm_base_negate_vt_batch = best_fn2;
+                tbl.scalarmult_ct_batch = best_fn;
 
-                ed25519_secure_erase(batch_b_scalars, sizeof(batch_b_scalars));
-            }
+                // ── Batch DSM ──
+                {
+                    unsigned char batch_b_scalars[BATCH_N * 32];
+                    for (size_t i = 0; i < BATCH_N; i++)
+                    {
+                        for (int j = 0; j < 32; j++)
+                            batch_b_scalars[i * 32 + j] = static_cast<unsigned char>(j + i + 65);
+                        sc_clamp(batch_b_scalars + i * 32);
+                    }
 
-            // ── Batch DSM shared-scalar ──
-            {
-                // Reuse batch_points as both A and B points for tuning
-                int64_t best_time3 = bench_dsm_negate_vt_batch_ss(
-                    ge_dsm_negate_vt_batch_ss_x64, s1, batch_points, s2, batch_points, BATCH_N);
-                decltype(tbl.dsm_negate_vt_batch_ss) best_fn3 = ge_dsm_negate_vt_batch_ss_x64;
+                    int64_t best_time2 = bench_dsm_base_negate_vt_batch(
+                        ge_dsm_base_negate_vt_batch_x64, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
+                    decltype(tbl.dsm_base_negate_vt_batch) best_fn2 = ge_dsm_base_negate_vt_batch_x64;
 
 #if !ED25519_NO_AVX2
-                if (features & ED25519_CPU_AVX2)
-                {
-                    auto t = bench_dsm_negate_vt_batch_ss(
-                        ge_dsm_negate_vt_batch_ss_avx2, s1, batch_points, s2, batch_points, BATCH_N);
-                    if (t < best_time3)
+                    if (features & ED25519_CPU_AVX2)
                     {
-                        best_time3 = t;
-                        best_fn3 = ge_dsm_negate_vt_batch_ss_avx2;
+                        auto t = bench_dsm_base_negate_vt_batch(
+                            ge_dsm_base_negate_vt_batch_avx2, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
+                        if (t < best_time2)
+                        {
+                            best_time2 = t;
+                            best_fn2 = ge_dsm_base_negate_vt_batch_avx2;
+                        }
                     }
-                }
 #endif
 #if !ED25519_NO_AVX512
-                if (features & ED25519_CPU_AVX512IFMA)
-                {
-                    auto t = bench_dsm_negate_vt_batch_ss(
-                        ge_dsm_negate_vt_batch_ss_ifma, s1, batch_points, s2, batch_points, BATCH_N);
-                    if (t < best_time3)
+                    if (features & ED25519_CPU_AVX512IFMA)
                     {
-                        best_time3 = t;
-                        best_fn3 = ge_dsm_negate_vt_batch_ss_ifma;
+                        auto t = bench_dsm_base_negate_vt_batch(
+                            ge_dsm_base_negate_vt_batch_ifma, batch_scalars, batch_points, batch_b_scalars, BATCH_N);
+                        if (t < best_time2)
+                        {
+                            best_time2 = t;
+                            best_fn2 = ge_dsm_base_negate_vt_batch_ifma;
+                        }
                     }
-                }
 #endif
-                tbl.dsm_negate_vt_batch_ss = best_fn3;
-            }
+                    tbl.dsm_base_negate_vt_batch = best_fn2;
 
-            // ── Batch DSM shared-scalar p3 ──
-            {
-                int64_t best_time4 = bench_dsm_negate_vt_batch_ss_p3(
-                    ge_dsm_negate_vt_batch_ss_p3_x64, s1, batch_points, s2, batch_points, BATCH_N);
-                decltype(tbl.dsm_negate_vt_batch_ss_p3) best_fn4 = ge_dsm_negate_vt_batch_ss_p3_x64;
+                    ed25519_secure_erase(batch_b_scalars, sizeof(batch_b_scalars));
+                }
+
+                // ── Batch DSM shared-scalar ──
+                {
+                    // Reuse batch_points as both A and B points for tuning
+                    int64_t best_time3 = bench_dsm_negate_vt_batch_ss(
+                        ge_dsm_negate_vt_batch_ss_x64, s1, batch_points, s2, batch_points, BATCH_N);
+                    decltype(tbl.dsm_negate_vt_batch_ss) best_fn3 = ge_dsm_negate_vt_batch_ss_x64;
 
 #if !ED25519_NO_AVX2
-                if (features & ED25519_CPU_AVX2)
-                {
-                    auto t = bench_dsm_negate_vt_batch_ss_p3(
-                        ge_dsm_negate_vt_batch_ss_p3_avx2, s1, batch_points, s2, batch_points, BATCH_N);
-                    if (t < best_time4)
+                    if (features & ED25519_CPU_AVX2)
                     {
-                        best_time4 = t;
-                        best_fn4 = ge_dsm_negate_vt_batch_ss_p3_avx2;
+                        auto t = bench_dsm_negate_vt_batch_ss(
+                            ge_dsm_negate_vt_batch_ss_avx2, s1, batch_points, s2, batch_points, BATCH_N);
+                        if (t < best_time3)
+                        {
+                            best_time3 = t;
+                            best_fn3 = ge_dsm_negate_vt_batch_ss_avx2;
+                        }
                     }
-                }
 #endif
 #if !ED25519_NO_AVX512
-                if (features & ED25519_CPU_AVX512IFMA)
-                {
-                    auto t = bench_dsm_negate_vt_batch_ss_p3(
-                        ge_dsm_negate_vt_batch_ss_p3_ifma, s1, batch_points, s2, batch_points, BATCH_N);
-                    if (t < best_time4)
+                    if (features & ED25519_CPU_AVX512IFMA)
                     {
-                        best_time4 = t;
-                        best_fn4 = ge_dsm_negate_vt_batch_ss_p3_ifma;
+                        auto t = bench_dsm_negate_vt_batch_ss(
+                            ge_dsm_negate_vt_batch_ss_ifma, s1, batch_points, s2, batch_points, BATCH_N);
+                        if (t < best_time3)
+                        {
+                            best_time3 = t;
+                            best_fn3 = ge_dsm_negate_vt_batch_ss_ifma;
+                        }
                     }
-                }
 #endif
-                tbl.dsm_negate_vt_batch_ss_p3 = best_fn4;
-            }
+                    tbl.dsm_negate_vt_batch_ss = best_fn3;
+                }
 
-            // ── MSM (multi-scalar multiplication) ──
-            {
-                // Use the batch points already generated (BATCH_N=16, within Straus range)
-                int64_t best_time5 = bench_msm_vartime(ge_msm_vartime_x64, batch_scalars, batch_points, BATCH_N);
-                decltype(tbl.msm_vartime) best_fn5 = ge_msm_vartime_x64;
+                // ── Batch DSM shared-scalar p3 ──
+                {
+                    int64_t best_time4 = bench_dsm_negate_vt_batch_ss_p3(
+                        ge_dsm_negate_vt_batch_ss_p3_x64, s1, batch_points, s2, batch_points, BATCH_N);
+                    decltype(tbl.dsm_negate_vt_batch_ss_p3) best_fn4 = ge_dsm_negate_vt_batch_ss_p3_x64;
 
 #if !ED25519_NO_AVX2
-                if (features & ED25519_CPU_AVX2)
-                {
-                    auto t = bench_msm_vartime(ge_msm_vartime_avx2, batch_scalars, batch_points, BATCH_N);
-                    if (t < best_time5)
+                    if (features & ED25519_CPU_AVX2)
                     {
-                        best_time5 = t;
-                        best_fn5 = ge_msm_vartime_avx2;
+                        auto t = bench_dsm_negate_vt_batch_ss_p3(
+                            ge_dsm_negate_vt_batch_ss_p3_avx2, s1, batch_points, s2, batch_points, BATCH_N);
+                        if (t < best_time4)
+                        {
+                            best_time4 = t;
+                            best_fn4 = ge_dsm_negate_vt_batch_ss_p3_avx2;
+                        }
                     }
-                }
 #endif
 #if !ED25519_NO_AVX512
-                if (features & ED25519_CPU_AVX512IFMA)
-                {
-                    auto t = bench_msm_vartime(ge_msm_vartime_ifma, batch_scalars, batch_points, BATCH_N);
-                    if (t < best_time5)
+                    if (features & ED25519_CPU_AVX512IFMA)
                     {
-                        best_time5 = t;
-                        best_fn5 = ge_msm_vartime_ifma;
+                        auto t = bench_dsm_negate_vt_batch_ss_p3(
+                            ge_dsm_negate_vt_batch_ss_p3_ifma, s1, batch_points, s2, batch_points, BATCH_N);
+                        if (t < best_time4)
+                        {
+                            best_time4 = t;
+                            best_fn4 = ge_dsm_negate_vt_batch_ss_p3_ifma;
+                        }
                     }
-                }
 #endif
-                tbl.msm_vartime = best_fn5;
+                    tbl.dsm_negate_vt_batch_ss_p3 = best_fn4;
+                }
 
-                // msm_base_vartime: delegates to msm_vartime internally, so use the same selection
-                // (the base point part is handled by ge_scalarmult_base_ct which has its own dispatch)
-                if (best_fn5 == ge_msm_vartime_x64)
-                    tbl.msm_base_vartime = ge_msm_base_vartime_x64;
+                // ── MSM (multi-scalar multiplication) ──
+                {
+                    // Use the batch points already generated (BATCH_N=16, within Straus range)
+                    int64_t best_time5 =
+                        bench_msm_vartime(ge_msm_vartime_x64, batch_scalars, batch_points, BATCH_N);
+                    decltype(tbl.msm_vartime) best_fn5 = ge_msm_vartime_x64;
+
 #if !ED25519_NO_AVX2
-                else if (best_fn5 == ge_msm_vartime_avx2)
-                    tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
+                    if (features & ED25519_CPU_AVX2)
+                    {
+                        auto t = bench_msm_vartime(ge_msm_vartime_avx2, batch_scalars, batch_points, BATCH_N);
+                        if (t < best_time5)
+                        {
+                            best_time5 = t;
+                            best_fn5 = ge_msm_vartime_avx2;
+                        }
+                    }
 #endif
 #if !ED25519_NO_AVX512
-                else if (best_fn5 == ge_msm_vartime_ifma)
-                    tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
+                    if (features & ED25519_CPU_AVX512IFMA)
+                    {
+                        auto t = bench_msm_vartime(ge_msm_vartime_ifma, batch_scalars, batch_points, BATCH_N);
+                        if (t < best_time5)
+                        {
+                            best_time5 = t;
+                            best_fn5 = ge_msm_vartime_ifma;
+                        }
+                    }
 #endif
+                    tbl.msm_vartime = best_fn5;
+
+                    // msm_base_vartime: delegates to msm_vartime internally, so use the same selection
+                    if (best_fn5 == ge_msm_vartime_x64)
+                        tbl.msm_base_vartime = ge_msm_base_vartime_x64;
+#if !ED25519_NO_AVX2
+                    else if (best_fn5 == ge_msm_vartime_avx2)
+                        tbl.msm_base_vartime = ge_msm_base_vartime_avx2;
+#endif
+#if !ED25519_NO_AVX512
+                    else if (best_fn5 == ge_msm_vartime_ifma)
+                        tbl.msm_base_vartime = ge_msm_base_vartime_ifma;
+#endif
+                }
+
+                ed25519_secure_erase(batch_scalars, sizeof(batch_scalars));
             }
 
-            ed25519_secure_erase(batch_scalars, sizeof(batch_scalars));
+            // Erase test scalars
+            ed25519_secure_erase(s1, 32);
+            ed25519_secure_erase(s2, 32);
         }
 
         (void)features;
 
-        // Erase test scalars
-        ed25519_secure_erase(s1, 32);
-        ed25519_secure_erase(s2, 32);
-
-        // Publish the fully-built dispatch table with a release fence
+        // Publish the fully-built dispatch table, then mark done.
+        // The release fence ensures the table write is visible before init_state becomes 2.
         dispatch_table = tbl;
         std::atomic_thread_fence(std::memory_order_release);
+        init_state.store(2, std::memory_order_release);
+    }
+    else
+    {
+        // Another thread is running init — spin until done
+        while (init_state.load(std::memory_order_acquire) != 2)
+            ;
     }
 }
 

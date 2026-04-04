@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     {
         if (std::strcmp(argv[i], "--autotune") == 0)
         {
-            ed25519_autotune();
+            ed25519_init(true);
             dispatch_label = "autotune";
         }
         else if (std::strcmp(argv[i], "--init") == 0)

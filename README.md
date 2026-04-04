@@ -129,14 +129,14 @@ bool verify(const ge_p3 *A, const unsigned char R[32],
 On x86_64, initialize SIMD dispatch before any crypto operations:
 
 ```cpp
-// Option 1: fast heuristic — picks IFMA > AVX2 > baseline
+// Fast heuristic — picks IFMA > AVX2 > baseline
 ed25519_init();
 
-// Option 2: benchmark all backends, pick fastest per-function (~1-2 seconds)
-ed25519_autotune();
+// Or: benchmark all backends, pick fastest per-function (~1-2 seconds)
+ed25519_init(true);
 ```
 
-Both are thread-safe and only execute once; subsequent calls are no-ops.
+Both modes are thread-safe and only execute once; subsequent calls are no-ops.
 
 ## Architecture
 
@@ -168,7 +168,7 @@ Both representations are 40 bytes, so the `fe` type has the same layout regardle
 - `ge_double_scalarmult_negate_vartime_batch_ss` — batch DSM with shared scalars (returns `ge_p2`)
 - `ge_double_scalarmult_negate_vartime_batch_ss_p3` — batch DSM with shared scalars (returns `ge_p3`, avoids expensive p2-to-p3 conversion)
 
-CPU features (AVX2, AVX-512F, AVX-512 IFMA) are detected via CPUID+XGETBV at startup. Call `ed25519_init()` for fast heuristic selection, or `ed25519_autotune()` to benchmark all available implementations and pick the fastest per-function.
+CPU features (AVX2, AVX-512F, AVX-512 IFMA) are detected via CPUID+XGETBV at startup. Call `ed25519_init()` for fast heuristic selection, or `ed25519_init(true)` to benchmark all available implementations and pick the fastest per-function.
 
 ### SIMD Backends (x86_64)
 
@@ -250,10 +250,9 @@ Prime-order group abstraction over the Ed25519 curve ([RFC 9496](https://www.rfc
 
 On x86_64, SIMD-accelerated backends are selected at runtime based on detected CPU features.
 
-- **`ed25519_init()`** — Fast heuristic selection: picks IFMA if available, else AVX2 if available, else x64 baseline. Thread-safe; only the first call executes.
-- **`ed25519_autotune()`** — Benchmarks all available implementations and selects the fastest per-function. Takes 1-2 seconds. Thread-safe; only the first call executes.
+- **`ed25519_init(bool autotune = false)`** — Initializes the dispatch table. Without `autotune`, uses CPUID heuristics to select a good backend (~microseconds). With `autotune=true`, benchmarks all candidates and selects the empirically fastest per function (~1-2 seconds). Thread-safe; only the first call executes.
 - **`ed25519_has_avx2()`**, **`ed25519_has_avx512ifma()`** — Query detected CPU features.
-- **`ed25519_get_dispatch()`** — Returns a const reference to the dispatch table (read-only; only `ed25519_init`/`ed25519_autotune` can modify it).
+- **`ed25519_get_dispatch()`** — Returns a const reference to the dispatch table (read-only; only `ed25519_init` can modify it).
 
 ### Secure Erasure
 
