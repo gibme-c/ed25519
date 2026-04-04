@@ -303,6 +303,8 @@ endif()
 
 # --- Library compile options (PRIVATE — do not leak to downstream consumers) ---
 if(MSVC)
+    # CMake injects /W3 by default; strip it to avoid D9025 "overriding /W3 with /W4"
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     target_compile_options(ed25519 PRIVATE
         /W4 /GS /guard:cf /sdl /wd4267 /wd4804
         $<$<CONFIG:Debug>:/Ob2 /Oi>
