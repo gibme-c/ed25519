@@ -30,8 +30,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 # --- Compiler feature/flag detection (sets cache variables only) ---
+option(ENABLE_SPECTRE_MITIGATIONS "Enable MSVC Spectre mitigations (/Qspectre)" OFF)
 if(MSVC)
-    check_cxx_compiler_flag("/Qspectre" HAS_QSPECTRE)
+    if(ENABLE_SPECTRE_MITIGATIONS)
+        check_cxx_compiler_flag("/Qspectre" HAS_QSPECTRE)
+    endif()
     # CET shadow stack compatibility
     check_cxx_compiler_flag("/guard:ehcont" HAS_GUARD_EHCONT)
 else()

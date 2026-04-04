@@ -68,6 +68,7 @@ cmake --build build --config Release -j
 | `ENABLE_LTO` | `OFF` | Enable link-time optimization |
 | `ENABLE_AVX2` | `ON`* | Enable AVX2 SIMD backend with runtime dispatch |
 | `ENABLE_AVX512` | `ON`* | Enable AVX-512 IFMA SIMD backend with runtime dispatch |
+| `ENABLE_SPECTRE_MITIGATIONS` | `OFF` | Enable MSVC `/Qspectre` Spectre mitigations (opt-in for hardened builds) |
 | `BUILD_TOOLS` | `OFF` | Build the test vector generator (`ed25519-gen-testvectors`) |
 | `CMAKE_BUILD_TYPE` | `Release` | `Debug`, `Release`, or `RelWithDebInfo` |
 
