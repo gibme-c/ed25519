@@ -30,9 +30,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 # --- Compiler feature/flag detection (sets cache variables only) ---
-option(ENABLE_SPECTRE_MITIGATIONS "Enable MSVC Spectre mitigations (/Qspectre)" OFF)
+option(ED25519_ENABLE_SPECTRE_MITIGATIONS "Enable MSVC Spectre mitigations (/Qspectre)" OFF)
 if(MSVC)
-    if(ENABLE_SPECTRE_MITIGATIONS)
+    if(ED25519_ENABLE_SPECTRE_MITIGATIONS)
         check_cxx_compiler_flag("/Qspectre" HAS_QSPECTRE)
     endif()
     # CET shadow stack compatibility
@@ -60,7 +60,7 @@ set(ED25519_SRC
     src/portable/sc_reduce.cpp
 )
 
-option(FORCE_PORTABLE "Force portable (32-bit) implementation even on 64-bit platforms" OFF)
+option(ED25519_FORCE_PORTABLE "Force portable (32-bit) implementation even on 64-bit platforms" OFF)
 
 # Detect x86_64 specifically (SIMD backends are x86_64-only: AVX2, AVX-512 IFMA)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64)$")
@@ -72,22 +72,22 @@ endif()
 # SIMD backend options (x86_64 only, default ON when applicable)
 # Set either to OFF to benchmark individual code paths in isolation.
 # When both are OFF, produces the exact same binary as pre-SIMD builds.
-if(ED25519_IS_X86_64 AND NOT FORCE_PORTABLE)
-    option(ENABLE_AVX512 "Enable AVX-512 IFMA backend (set OFF to test AVX2 on AVX-512 hardware)" ON)
-    option(ENABLE_AVX2 "Enable AVX2 backend (set OFF to test x64 baseline on AVX2+ hardware)" ON)
+if(ED25519_IS_X86_64 AND NOT ED25519_FORCE_PORTABLE)
+    option(ED25519_ENABLE_AVX512 "Enable AVX-512 IFMA backend (set OFF to test AVX2 on AVX-512 hardware)" ON)
+    option(ED25519_ENABLE_AVX2 "Enable AVX2 backend (set OFF to test x64 baseline on AVX2+ hardware)" ON)
 else()
-    option(ENABLE_AVX512 "Enable AVX-512 IFMA backend" OFF)
-    option(ENABLE_AVX2 "Enable AVX2 backend" OFF)
+    option(ED25519_ENABLE_AVX512 "Enable AVX-512 IFMA backend" OFF)
+    option(ED25519_ENABLE_AVX2 "Enable AVX2 backend" OFF)
 endif()
 
 # Force SIMD off when portable is active — option() only sets defaults and won't
-# override explicit -DENABLE_AVX2=ON or cached values from a parent project.
-if(FORCE_PORTABLE)
-    set(ENABLE_AVX512 OFF CACHE BOOL "" FORCE)
-    set(ENABLE_AVX2 OFF CACHE BOOL "" FORCE)
+# override explicit -DED25519_ENABLE_AVX2=ON or cached values from a parent project.
+if(ED25519_FORCE_PORTABLE)
+    set(ED25519_ENABLE_AVX512 OFF CACHE BOOL "" FORCE)
+    set(ED25519_ENABLE_AVX2 OFF CACHE BOOL "" FORCE)
 endif()
 
-if(NOT FORCE_PORTABLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64|[aA][rR][mM]64|[aA][aA][rR][cC][hH]64)$")
+if(NOT ED25519_FORCE_PORTABLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([xX]86_64|[aA][mM][dD]64|[aA][rR][mM]64|[aA][aA][rR][cC][hH]64)$")
     set(ED25519_X64_SRC
         src/x64/fe_divpowm1.cpp
         src/x64/fe_frombytes.cpp
@@ -174,18 +174,18 @@ else()
     message(STATUS "ED25519: 32-bit portable implementation")
 endif()
 
-if(FORCE_PORTABLE)
-    message(STATUS "ED25519: Forced portable (32-bit) implementation via FORCE_PORTABLE")
+if(ED25519_FORCE_PORTABLE)
+    message(STATUS "ED25519: Forced portable (32-bit) implementation via ED25519_FORCE_PORTABLE")
 endif()
 
-# SIMD support: derived from ENABLE_AVX2 / ENABLE_AVX512
+# SIMD support: derived from ED25519_ENABLE_AVX2 / ED25519_ENABLE_AVX512
 # When either backend is enabled, compile CPUID module and define ED25519_SIMD=1
-if(ENABLE_AVX2 OR ENABLE_AVX512)
+if(ED25519_ENABLE_AVX2 OR ED25519_ENABLE_AVX512)
     # CPUID module and dispatch table: plain integer code, no special flags needed
     list(APPEND ED25519_SRC src/cpuid.cpp src/dispatch.cpp)
 
     # AVX-512 IFMA backend translation units (Phase 2)
-    if(ENABLE_AVX512)
+    if(ED25519_ENABLE_AVX512)
         set(ED25519_IFMA_SRC
             src/x64/ifma/ge_scalarmult_ct.cpp
             src/x64/ifma/ge_scalarmult_base_ct.cpp
@@ -201,7 +201,7 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
     endif()
 
     # AVX2 backend translation units (Phase 3)
-    if(ENABLE_AVX2)
+    if(ED25519_ENABLE_AVX2)
         set(ED25519_AVX2_SRC
             src/x64/avx2/ge_scalarmult_ct.cpp
             src/x64/avx2/ge_scalarmult_base_ct.cpp
@@ -216,10 +216,10 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
 
     # Status messages
     set(_simd_backends "")
-    if(ENABLE_AVX2)
+    if(ED25519_ENABLE_AVX2)
         string(APPEND _simd_backends "AVX2")
     endif()
-    if(ENABLE_AVX512)
+    if(ED25519_ENABLE_AVX512)
         if(_simd_backends)
             string(APPEND _simd_backends ", ")
         endif()
@@ -246,10 +246,10 @@ set_target_properties(ed25519 PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-if(FORCE_PORTABLE)
+if(ED25519_FORCE_PORTABLE)
     target_compile_definitions(ed25519 PUBLIC ED25519_FORCE_PORTABLE=1)
 endif()
-if(ENABLE_AVX2 OR ENABLE_AVX512)
+if(ED25519_ENABLE_AVX2 OR ED25519_ENABLE_AVX512)
     target_compile_definitions(ed25519 PUBLIC ED25519_SIMD=1)
 
     # MinGW GCC + Debug: Windows x64 ABI only guarantees 16-byte stack alignment,
@@ -263,7 +263,7 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
     endif()
 
     # AVX-512 IFMA compile flags: IFMA TUs need special instruction set flags
-    if(ENABLE_AVX512)
+    if(ED25519_ENABLE_AVX512)
         if(MSVC)
             set(ED25519_IFMA_FLAGS "/arch:AVX512")
         else()
@@ -278,11 +278,11 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
         message(STATUS "ED25519: IFMA TUs compiled with: ${ED25519_IFMA_FLAGS}")
     else()
         target_compile_definitions(ed25519 PUBLIC ED25519_NO_AVX512=1)
-        message(STATUS "ED25519: AVX-512 IFMA backend disabled (ENABLE_AVX512=OFF)")
+        message(STATUS "ED25519: AVX-512 IFMA backend disabled (ED25519_ENABLE_AVX512=OFF)")
     endif()
 
     # AVX2 compile flags: AVX2 TUs need AVX2 instruction set flags
-    if(ENABLE_AVX2)
+    if(ED25519_ENABLE_AVX2)
         if(MSVC)
             set(ED25519_AVX2_FLAGS "/arch:AVX2")
         else()
@@ -297,7 +297,7 @@ if(ENABLE_AVX2 OR ENABLE_AVX512)
         message(STATUS "ED25519: AVX2 TUs compiled with: ${ED25519_AVX2_FLAGS}")
     else()
         target_compile_definitions(ed25519 PUBLIC ED25519_NO_AVX2=1)
-        message(STATUS "ED25519: AVX2 backend disabled (ENABLE_AVX2=OFF)")
+        message(STATUS "ED25519: AVX2 backend disabled (ED25519_ENABLE_AVX2=OFF)")
     endif()
 endif()
 
@@ -358,8 +358,8 @@ else()
 endif()
 
 # --- LTO (target-scoped) ---
-option(ENABLE_LTO "Enable link-time optimization" OFF)
-if(ENABLE_LTO)
+option(ED25519_ENABLE_LTO "Enable link-time optimization" OFF)
+if(ED25519_ENABLE_LTO)
     if(MSVC)
         target_compile_options(ed25519 PRIVATE /GL)
         set_target_properties(ed25519 PROPERTIES STATIC_LIBRARY_FLAGS "/LTCG")
@@ -368,6 +368,72 @@ if(ENABLE_LTO)
     endif()
     message(STATUS "ED25519: Link-time optimization enabled")
 endif()
+
+# --- Sanitizer configuration (test/fuzzer-only, never touches `ed25519` target) ---
+set(ED25519_TEST_SANITIZERS "" CACHE STRING
+    "Comma-separated sanitizers to apply to test binaries only (e.g. address,undefined; thread). \
+Not applied to the `ed25519` library target.")
+
+# Rebuild a set of library sources into a private OBJECT library mirroring the
+# `ed25519` target's include dirs / defines / compile options, plus any
+# extra compile options. Used by sanitized test builds and libFuzzer harnesses
+# so instrumentation never touches the installed `ed25519` library target.
+function(ed25519_make_object_library name sources)
+    add_library(${name} OBJECT ${sources})
+    set_target_properties(${name} PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        POSITION_INDEPENDENT_CODE ON
+    )
+    target_include_directories(${name} PRIVATE
+        $<TARGET_PROPERTY:ed25519,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(${name} PRIVATE
+        $<TARGET_PROPERTY:ed25519,COMPILE_DEFINITIONS>)
+    target_compile_options(${name} PRIVATE
+        $<TARGET_PROPERTY:ed25519,COMPILE_OPTIONS>
+        ${ARGN})
+endfunction()
+
+function(ed25519_apply_sanitizers target sanitizers_csv)
+    if(NOT sanitizers_csv)
+        return()
+    endif()
+    if(MINGW)
+        message(FATAL_ERROR "ED25519_TEST_SANITIZERS is not supported on MinGW")
+    endif()
+    if(MSVC)
+        if(NOT sanitizers_csv STREQUAL "address")
+            message(FATAL_ERROR
+                "MSVC only supports ED25519_TEST_SANITIZERS=address (got: ${sanitizers_csv})")
+        endif()
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            message(FATAL_ERROR
+                "MSVC ASan is incompatible with /RTC* in Debug builds — use Release or RelWithDebInfo")
+        endif()
+        # /guard:cf- is load-bearing: CFG's __guard_check_icall_fptr __fastfails
+        # on ASan's interceptor trampoline dispatch, producing a silent
+        # STATUS_STACK_BUFFER_OVERRUN at startup. /GS- /guard:ehcont- /sdl-
+        # disable adjacent hardening that can surface similar failures.
+        # Appended after the inherited flags so "last flag wins" disables them.
+        target_compile_options(${target} PRIVATE
+            /fsanitize=address /Zi
+            /GS- /guard:cf- /guard:ehcont- /sdl-)
+        set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS
+            " /INCREMENTAL:NO /DEBUG")
+    else()
+        string(REPLACE "," ";" _san_list "${sanitizers_csv}")
+        set(_san_cflags "")
+        set(_san_ldflags "")
+        foreach(_san IN LISTS _san_list)
+            list(APPEND _san_cflags "-fsanitize=${_san}")
+            set(_san_ldflags "${_san_ldflags} -fsanitize=${_san}")
+        endforeach()
+        list(APPEND _san_cflags "-fno-omit-frame-pointer" "-g")
+        target_compile_options(${target} PRIVATE ${_san_cflags})
+        set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS "${_san_ldflags}")
+    endif()
+endfunction()
 
 # --- Helper: apply compile and linker hardening flags to executables ---
 # Compile flags that affect linkage (e.g. /guard:ehcont) must be applied to
@@ -391,7 +457,7 @@ function(ed25519_apply_exe_flags target)
         # Linux linker hardening (for CI builds)
         set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " -Wl,-z,relro,-z,now -Wl,-z,noexecstack")
     endif()
-    if(ENABLE_LTO)
+    if(ED25519_ENABLE_LTO)
         if(MSVC)
             set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS " /LTCG")
         else()
@@ -401,29 +467,52 @@ function(ed25519_apply_exe_flags target)
 endfunction()
 
 # --- Executables ---
-option(BUILD_TESTS "Build unit tests" OFF)
-if(DEFINED ENV{BUILD_TESTS})
-    set(BUILD_TESTS $ENV{BUILD_TESTS})
+# ED25519_BUILD_* options are forced OFF when the repo is consumed via
+# add_subdirectory() by a parent project — downstream consumers never compile
+# our test/benchmark/tool/fuzzer artifacts regardless of parent-cache state.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    option(ED25519_BUILD_TESTS "Build unit tests (ed25519-tests)" OFF)
+    option(ED25519_BUILD_BENCHMARKS "Build benchmarks (ed25519-benchmark)" OFF)
+    option(ED25519_BUILD_TOOLS "Build test vector generator (ed25519-gen-testvectors)" OFF)
+    # dudect harnesses are local-only: upstream dudect.h is POSIX and CI
+    # runners are too noisy for a reliable Welch t-test signal.
+    option(ED25519_BUILD_CT_TESTS "Build empirical constant-time (dudect) harnesses" OFF)
+    option(ED25519_BUILD_FUZZERS "Build libFuzzer harnesses (clang-only)" OFF)
+else()
+    set(ED25519_BUILD_TESTS OFF)
+    set(ED25519_BUILD_BENCHMARKS OFF)
+    set(ED25519_BUILD_TOOLS OFF)
+    set(ED25519_BUILD_CT_TESTS OFF)
+    set(ED25519_BUILD_FUZZERS OFF)
 endif()
 
-option(BUILD_BENCHMARKS "Build benchmarks" OFF)
-if(DEFINED ENV{BUILD_BENCHMARKS})
-    set(BUILD_BENCHMARKS $ENV{BUILD_BENCHMARKS})
-endif()
-
-if(BUILD_TESTS)
+if(ED25519_BUILD_TESTS)
     message(STATUS "ED25519: Building unit tests")
 
-    add_executable(ed25519-tests src/tests.cpp)
-    target_link_libraries(ed25519-tests PRIVATE ed25519)
-    ed25519_apply_exe_flags(ed25519-tests)
+    if(ED25519_TEST_SANITIZERS)
+        message(STATUS "ED25519: Test binaries will be built with sanitizers: ${ED25519_TEST_SANITIZERS}")
+
+        # Sources share `ed25519`'s set_source_files_properties() per-TU IFMA/AVX2
+        # flags since they live in the same directory. The main `ed25519` target
+        # is not touched — sanitizer flags stay on this target only.
+        ed25519_make_object_library(ed25519_test_objs "${ED25519_SRC}")
+        ed25519_apply_sanitizers(ed25519_test_objs ${ED25519_TEST_SANITIZERS})
+
+        add_executable(ed25519-tests src/tests.cpp $<TARGET_OBJECTS:ed25519_test_objs>)
+        target_include_directories(ed25519-tests PRIVATE
+            $<TARGET_PROPERTY:ed25519,INTERFACE_INCLUDE_DIRECTORIES>)
+        ed25519_apply_sanitizers(ed25519-tests ${ED25519_TEST_SANITIZERS})
+        # ed25519_apply_exe_flags is skipped here: /GS /guard:cf /sdl /CETCOMPAT
+        # conflict with ASan trampoline dispatch on MSVC (see
+        # ed25519_apply_sanitizers above).
+    else()
+        add_executable(ed25519-tests src/tests.cpp)
+        target_link_libraries(ed25519-tests PRIVATE ed25519)
+        ed25519_apply_exe_flags(ed25519-tests)
+    endif()
 endif()
 
-option(BUILD_TOOLS "Build test vector generator" OFF)
-if(DEFINED ENV{BUILD_TOOLS})
-    set(BUILD_TOOLS $ENV{BUILD_TOOLS})
-endif()
-if(BUILD_TOOLS)
+if(ED25519_BUILD_TOOLS)
     message(STATUS "ED25519: Building test vector generator")
 
     add_executable(ed25519-gen-testvectors tools/gen_test_vectors.cpp)
@@ -431,10 +520,27 @@ if(BUILD_TOOLS)
     ed25519_apply_exe_flags(ed25519-gen-testvectors)
 endif()
 
-if(BUILD_BENCHMARKS)
+if(ED25519_BUILD_BENCHMARKS)
     message(STATUS "ED25519: Building benchmarks")
 
     add_executable(ed25519-benchmark src/benchmark.cpp)
     target_link_libraries(ed25519-benchmark PRIVATE ed25519)
     ed25519_apply_exe_flags(ed25519-benchmark)
+endif()
+
+if(ED25519_BUILD_CT_TESTS)
+    if(WIN32)
+        message(WARNING "ED25519_BUILD_CT_TESTS is not supported on Windows; skipping")
+    else()
+        message(STATUS "ED25519: Building empirical constant-time (dudect) harnesses")
+        add_subdirectory(tests/ct)
+    endif()
+endif()
+
+if(ED25519_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "ED25519_BUILD_FUZZERS requires Clang (libFuzzer)")
+    endif()
+    message(STATUS "ED25519: Building libFuzzer harnesses")
+    add_subdirectory(tests/fuzz)
 endif()

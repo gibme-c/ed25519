@@ -30,8 +30,8 @@ For more information, please refer to <http://unlicense.org/>
  * @brief Runtime dispatch table and auto-tuning for SIMD scalar multiplication.
  *
  * Implements the dispatch table, CPUID-based initialization, and
- * benchmarking-based auto-tuning for the six dispatchable scalar multiplication
- * operations.
+ * benchmarking-based auto-tuning for the ten dispatchable operations
+ * (eight scalarmult + two MSM).
  */
 
 #include "ed25519_dispatch.h"
@@ -49,7 +49,12 @@ For more information, please refer to <http://unlicense.org/>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <vector>
+
+#if defined(_MSC_VER)
+#include <immintrin.h>
+#endif
 
 // ── Forward declarations of all implementation functions ──
 // These are defined in their respective TUs (src/x64/, src/x64/avx2/, src/x64/ifma/).
@@ -198,7 +203,7 @@ const ed25519_dispatch_table &ed25519_get_dispatch()
 
 // ── Initialization state: 0=pending, 1=running, 2=done ──
 
-static std::atomic<int> init_state{0};
+static std::atomic<int> init_state {0};
 
 // ── Auto-tune benchmark helpers ──
 
@@ -581,8 +586,8 @@ void ed25519_init(bool autotune)
 #if !ED25519_NO_AVX512
                 if (features & ED25519_CPU_AVX512IFMA)
                 {
-                    auto t = bench_dsm_negate_vt(
-                        ge_double_scalarmult_negate_vartime_ifma, s1, &test_point, s2, test_dsmp);
+                    auto t =
+                        bench_dsm_negate_vt(ge_double_scalarmult_negate_vartime_ifma, s1, &test_point, s2, test_dsmp);
                     if (t < best_time)
                     {
                         best_time = t;
@@ -751,8 +756,7 @@ void ed25519_init(bool autotune)
                 // ── MSM (multi-scalar multiplication) ──
                 {
                     // Use the batch points already generated (BATCH_N=16, within Straus range)
-                    int64_t best_time5 =
-                        bench_msm_vartime(ge_msm_vartime_x64, batch_scalars, batch_points, BATCH_N);
+                    int64_t best_time5 = bench_msm_vartime(ge_msm_vartime_x64, batch_scalars, batch_points, BATCH_N);
                     decltype(tbl.msm_vartime) best_fn5 = ge_msm_vartime_x64;
 
 #if !ED25519_NO_AVX2
@@ -803,16 +807,26 @@ void ed25519_init(bool autotune)
         (void)features;
 
         // Publish the fully-built dispatch table, then mark done.
-        // The release fence ensures the table write is visible before init_state becomes 2.
+        // The release store of init_state orders all prior writes (including
+        // the dispatch_table assignment) with any acquire load of init_state,
+        // so no separate fence is required.
         dispatch_table = tbl;
-        std::atomic_thread_fence(std::memory_order_release);
         init_state.store(2, std::memory_order_release);
     }
     else
     {
-        // Another thread is running init — spin until done
+        // Another thread is running init — spin until done, pausing to
+        // avoid burning an SMT sibling's execution resources.
         while (init_state.load(std::memory_order_acquire) != 2)
-            ;
+        {
+#if defined(_MSC_VER)
+            _mm_pause();
+#elif defined(__x86_64__) || defined(__i386__)
+            __builtin_ia32_pause();
+#else
+            std::this_thread::yield();
+#endif
+        }
     }
 }
 

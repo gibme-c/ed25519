@@ -44,6 +44,14 @@ static void *(*const volatile memset_func)(void *, int, size_t) = std::memset;
 
 void ed25519_secure_erase(void *pointer, size_t length)
 {
+    // Zero-length is a no-op; short-circuit before dispatching so callers can
+    // safely pass (nullptr, 0). Some underlying primitives (explicit_bzero,
+    // memset_s) are declared __attribute__((nonnull)) and trip UBSan on null
+    // even when length == 0.
+    if (length == 0)
+    {
+        return;
+    }
 #ifdef _MSC_VER
     SecureZeroMemory(pointer, length);
 #elif defined(ED25519_HAS_MEMSET_S)

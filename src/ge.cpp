@@ -27,6 +27,10 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ge.h"
 
+#include "fe_isnonzero.h"
+#include "fe_mul.h"
+#include "fe_sub.h"
+
 #include <cstddef>
 
 static int ct_memcmp(const void *a, const void *b, size_t len)
@@ -39,13 +43,27 @@ static int ct_memcmp(const void *a, const void *b, size_t len)
     return diff;
 }
 
+// fe_isnonzero calls fe_tobytes which canonicalizes, so this is safe even
+// when a or b carry unreduced limb patterns.
+static inline bool fe_eq_ct(const fe a, const fe b)
+{
+    fe diff;
+    fe_sub(diff, a, b);
+    return fe_isnonzero(diff) == 0;
+}
+
+// Projective equality: two representations are equal iff they denote the same
+// affine point regardless of projective scaling. ge_precomp uses byte-literal
+// equality because its representation has no projective degree of freedom.
+
 bool ge_p2::operator==(const GeP2 &other) const
 {
-    int diff = 0;
-    diff |= ct_memcmp(X, other.X, sizeof(X));
-    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
-    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
-    return diff == 0;
+    fe x1z2, x2z1, y1z2, y2z1;
+    fe_mul(x1z2, X, other.Z);
+    fe_mul(x2z1, other.X, Z);
+    fe_mul(y1z2, Y, other.Z);
+    fe_mul(y2z1, other.Y, Z);
+    return fe_eq_ct(x1z2, x2z1) && fe_eq_ct(y1z2, y2z1);
 }
 
 bool ge_p2::operator!=(const GeP2 &other) const
@@ -55,12 +73,13 @@ bool ge_p2::operator!=(const GeP2 &other) const
 
 bool ge_p3::operator==(const GeP3 &other) const
 {
-    int diff = 0;
-    diff |= ct_memcmp(X, other.X, sizeof(X));
-    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
-    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
-    diff |= ct_memcmp(T, other.T, sizeof(T));
-    return diff == 0;
+    // T = X*Y/Z is redundant for well-formed p3, so comparing X/Z and Y/Z suffices.
+    fe x1z2, x2z1, y1z2, y2z1;
+    fe_mul(x1z2, X, other.Z);
+    fe_mul(x2z1, other.X, Z);
+    fe_mul(y1z2, Y, other.Z);
+    fe_mul(y2z1, other.Y, Z);
+    return fe_eq_ct(x1z2, x2z1) && fe_eq_ct(y1z2, y2z1);
 }
 
 bool ge_p3::operator!=(const GeP3 &other) const
@@ -70,12 +89,13 @@ bool ge_p3::operator!=(const GeP3 &other) const
 
 bool ge_p1p1::operator==(const GeP1P1 &other) const
 {
-    int diff = 0;
-    diff |= ct_memcmp(X, other.X, sizeof(X));
-    diff |= ct_memcmp(Y, other.Y, sizeof(Y));
-    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
-    diff |= ct_memcmp(T, other.T, sizeof(T));
-    return diff == 0;
+    // p1p1 affine form is (X/Z, Y/T).
+    fe x1z2, x2z1, y1t2, y2t1;
+    fe_mul(x1z2, X, other.Z);
+    fe_mul(x2z1, other.X, Z);
+    fe_mul(y1t2, Y, other.T);
+    fe_mul(y2t1, other.Y, T);
+    return fe_eq_ct(x1z2, x2z1) && fe_eq_ct(y1t2, y2t1);
 }
 
 bool ge_p1p1::operator!=(const GeP1P1 &other) const
@@ -99,12 +119,13 @@ bool ge_precomp::operator!=(const GePrecomp &other) const
 
 bool ge_cached::operator==(const GeCached &other) const
 {
-    int diff = 0;
-    diff |= ct_memcmp(YplusX, other.YplusX, sizeof(YplusX));
-    diff |= ct_memcmp(YminusX, other.YminusX, sizeof(YminusX));
-    diff |= ct_memcmp(Z, other.Z, sizeof(Z));
-    diff |= ct_memcmp(T2d, other.T2d, sizeof(T2d));
-    return diff == 0;
+    // (YplusX/Z, YminusX/Z) uniquely determines the point; T2d is redundant.
+    fe ypx1_z2, ypx2_z1, ymx1_z2, ymx2_z1;
+    fe_mul(ypx1_z2, YplusX, other.Z);
+    fe_mul(ypx2_z1, other.YplusX, Z);
+    fe_mul(ymx1_z2, YminusX, other.Z);
+    fe_mul(ymx2_z1, other.YminusX, Z);
+    return fe_eq_ct(ypx1_z2, ypx2_z1) && fe_eq_ct(ymx1_z2, ymx2_z1);
 }
 
 bool ge_cached::operator!=(const GeCached &other) const

@@ -53,6 +53,12 @@ For more information, please refer to <http://unlicense.org/>
  *
  * Uses a precomputed table of base point multiples.
  *
+ * @pre a[31] must be <= 127. This is satisfied by any scalar that has been
+ *      clamped via sc_clamp() (which clears bit 7 of byte 31) or reduced
+ *      modulo l via sc_reduce() (l < 2^253, so all reduced scalars have
+ *      byte 31 < 0x20). Raw 32-byte scalars with byte 31 >= 128 produce
+ *      silently wrong output.
+ *
  * @param h Output extended point.
  * @param a Input 32-byte scalar.
  */

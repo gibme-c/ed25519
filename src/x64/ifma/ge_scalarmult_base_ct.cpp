@@ -110,7 +110,9 @@ static void select_ifma(ge_precomp *t, int pos, signed char b)
 {
     ge_precomp minust;
     unsigned char bnegative = negative(b);
-    unsigned char babs = b - (((-bnegative) & b) << 1);
+    // Branchless |b| via XOR-subtract trick, computed in unsigned to avoid
+    // UB from left-shifting a negative int.
+    unsigned char babs = (unsigned char)(((unsigned int)(int)b ^ (0u - (unsigned int)bnegative)) + bnegative);
 
     ge_precomp_0(t);
     ge_precomp_cmov(t, &ge_base[pos][0], equal(babs, 1));

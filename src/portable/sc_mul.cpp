@@ -30,6 +30,9 @@ For more information, please refer to <http://unlicense.org/>
  * @brief portable implementation of scalar multiplication modulo l.
  */
 
+#include "ed25519_platform.h"
+#if !ED25519_PLATFORM_64BIT
+
 #include "ed25519_secure_erase.h"
 #include "sc.h"
 
@@ -557,3 +560,5 @@ void sc_mul_portable(unsigned char *s, const unsigned char *a, const unsigned ch
     ed25519_secure_erase(&carry21, sizeof(carry21));
     ed25519_secure_erase(&carry22, sizeof(carry22));
 }
+
+#endif // !ED25519_PLATFORM_64BIT

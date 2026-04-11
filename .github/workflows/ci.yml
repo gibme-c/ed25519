@@ -16,48 +16,62 @@ jobs:
       matrix:
         include:
           # ── Linux gcc-11 ──────────────────────────────────────────
-          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
-          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: portable,     cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-baseline, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-avx2,     cmake_flags: "-DED25519_ENABLE_AVX512=OFF" }
           - { os: ubuntu-latest, cc: gcc-11,    cxx: g++-11,      name: gcc-11,    config: x64-full,     cmake_flags: "" }
 
           # ── Linux gcc-12 ──────────────────────────────────────────
-          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
-          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: portable,     cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-baseline, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-avx2,     cmake_flags: "-DED25519_ENABLE_AVX512=OFF" }
           - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,      name: gcc-12,    config: x64-full,     cmake_flags: "" }
 
           # ── Linux clang-14 ────────────────────────────────────────
-          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
-          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: portable,     cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-baseline, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-avx2,     cmake_flags: "-DED25519_ENABLE_AVX512=OFF" }
           - { os: ubuntu-latest, cc: clang-14,  cxx: clang++-14,  name: clang-14,  config: x64-full,     cmake_flags: "" }
 
           # ── Linux clang-15 ────────────────────────────────────────
-          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
-          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: portable,     cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-baseline, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-avx2,     cmake_flags: "-DED25519_ENABLE_AVX512=OFF" }
           - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15,  name: clang-15,  config: x64-full,     cmake_flags: "" }
 
           # ── macOS Homebrew clang (ARM64 — no x86 SIMD configs) ───
-          - { os: macos-latest, cc: /opt/homebrew/opt/llvm/bin/clang, cxx: /opt/homebrew/opt/llvm/bin/clang++, name: clang, config: portable, cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: macos-latest, cc: /opt/homebrew/opt/llvm/bin/clang, cxx: /opt/homebrew/opt/llvm/bin/clang++, name: clang, config: portable, cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
           - { os: macos-latest, cc: /opt/homebrew/opt/llvm/bin/clang, cxx: /opt/homebrew/opt/llvm/bin/clang++, name: clang, config: arm64,     cmake_flags: "" }
 
           # ── macOS AppleClang (ARM64 — no x86 SIMD configs) ───────
-          - { os: macos-latest, name: AppleClang, config: portable, cmake_flags: "-DFORCE_PORTABLE=ON" }
+          - { os: macos-latest, name: AppleClang, config: portable, cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
           - { os: macos-latest, name: AppleClang, config: arm64,     cmake_flags: "" }
 
           # ── Windows MSVC (Ninja for fast builds) ───────────────────
-          - { os: windows-latest, name: msvc, config: portable,     cmake_flags: "-DFORCE_PORTABLE=ON" }
-          - { os: windows-latest, name: msvc, config: x64-baseline, cmake_flags: "-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: windows-latest, name: msvc, config: x64-avx2,     cmake_flags: "-DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: msvc, config: portable,     cmake_flags: "-DED25519_FORCE_PORTABLE=ON" }
+          - { os: windows-latest, name: msvc, config: x64-baseline, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: msvc, config: x64-avx2,     cmake_flags: "-DED25519_ENABLE_AVX512=OFF" }
           - { os: windows-latest, name: msvc, config: x64-full,     cmake_flags: "" }
 
           # ── Windows MinGW GCC ─────────────────────────────────────
-          - { os: windows-latest, name: mingw-gcc, config: portable,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DFORCE_PORTABLE=ON" }
-          - { os: windows-latest, name: mingw-gcc, config: x64-baseline, cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DENABLE_AVX2=OFF -DENABLE_AVX512=OFF" }
-          - { os: windows-latest, name: mingw-gcc, config: x64-avx2,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: mingw-gcc, config: portable,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DED25519_FORCE_PORTABLE=ON" }
+          - { os: windows-latest, name: mingw-gcc, config: x64-baseline, cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF" }
+          - { os: windows-latest, name: mingw-gcc, config: x64-avx2,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++ -DED25519_ENABLE_AVX512=OFF" }
           - { os: windows-latest, name: mingw-gcc, config: x64-full,     cmake_flags: "-G \"MinGW Makefiles\" -DCMAKE_CXX_COMPILER=g++" }
+
+          # ── Sanitizers (Linux gcc / clang) ────────────────────────
+          - { os: ubuntu-latest, cc: gcc-12,    cxx: g++-12,     name: gcc-12,   config: asan-ubsan, cmake_flags: "-DED25519_TEST_SANITIZERS=address,undefined" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15, name: clang-15, config: asan-ubsan, cmake_flags: "-DED25519_TEST_SANITIZERS=address,undefined" }
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15, name: clang-15, config: tsan,       cmake_flags: "-DED25519_TEST_SANITIZERS=thread" }
+
+          # ── MSVC ASan (x64-baseline — ASan codegen with AVX-512 is fragile) ──
+          # The sanitized target drops /GS /guard:cf /sdl hardening to avoid
+          # CFG __fastfail on ASan trampoline dispatch. clang_rt.asan_dynamic*.dll
+          # is provided on PATH by the ilammy/msvc-dev-cmd vcvars bootstrap.
+          - { os: windows-latest, name: msvc, config: asan-msvc, cmake_flags: "-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF -DED25519_TEST_SANITIZERS=address" }
+
+          # ── libFuzzer smoke (Linux clang-15) ──────────────────────
+          - { os: ubuntu-latest, cc: clang-15,  cxx: clang++-15, name: clang-15, config: fuzzers, cmake_flags: "-DED25519_BUILD_FUZZERS=ON" }
 
     name: ${{ matrix.os }} / ${{ matrix.name }} / ${{ matrix.config }}
     steps:
@@ -88,7 +102,15 @@ jobs:
           if [ "${{ matrix.name }}" = "msvc" ]; then
             EXTRA="-G Ninja -DCMAKE_BUILD_TYPE=Release"
           fi
-          cmake -S . -B build -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON $EXTRA ${{ matrix.cmake_flags }}
+          case "${{ matrix.config }}" in
+            fuzzers)
+              BASE="" ;;
+            asan-ubsan|tsan|asan-msvc)
+              BASE="-DED25519_BUILD_TESTS=ON" ;;
+            *)
+              BASE="-DED25519_BUILD_TESTS=ON -DED25519_BUILD_BENCHMARKS=ON" ;;
+          esac
+          cmake -S . -B build $BASE $EXTRA ${{ matrix.cmake_flags }}
 
       - name: Build
         run: cmake --build build --config Release -j
@@ -106,17 +128,54 @@ jobs:
           fi
 
       - name: Tests (baseline)
+        if: matrix.config != 'tsan' && matrix.config != 'fuzzers'
         shell: bash
+        env:
+          # Note: detect_leaks is omitted — Linux ASan enables it by default,
+          # and MSVC ASan hard-fails on `detect_leaks=1` with "not supported".
+          ASAN_OPTIONS: halt_on_error=1:strict_string_checks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1:abort_on_error=1
         run: ${{ steps.exe.outputs.tests }}
 
       - name: Tests (--init)
+        if: matrix.config != 'tsan' && matrix.config != 'fuzzers' && matrix.config != 'asan-ubsan' && matrix.config != 'asan-msvc'
         shell: bash
         run: ${{ steps.exe.outputs.tests }} --init
 
       - name: Tests (--autotune)
+        if: matrix.config != 'tsan' && matrix.config != 'fuzzers' && matrix.config != 'asan-ubsan' && matrix.config != 'asan-msvc'
         shell: bash
         run: ${{ steps.exe.outputs.tests }} --autotune
 
+      - name: Tests (--concurrency-only, TSan)
+        if: matrix.config == 'tsan'
+        shell: bash
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1:abort_on_error=1
+        run: ${{ steps.exe.outputs.tests }} --concurrency-only
+
       - name: Benchmark
+        if: matrix.config != 'tsan' && matrix.config != 'fuzzers' && matrix.config != 'asan-ubsan' && matrix.config != 'asan-msvc'
         shell: bash
         run: ${{ steps.exe.outputs.bench }}
+
+      - name: Fuzz smoke
+        if: matrix.config == 'fuzzers'
+        shell: bash
+        env:
+          ASAN_OPTIONS: halt_on_error=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1:abort_on_error=1
+        run: |
+          for t in fuzz_fe_roundtrip fuzz_ge_frombytes \
+                   fuzz_ristretto255_decode fuzz_ristretto255_from_uniform \
+                   fuzz_sc_reduce fuzz_sc_check_reduced fuzz_x25519 \
+                   fuzz_ge_multiscalar_mul; do
+            mkdir -p "tests/fuzz/corpora/$t"
+            echo "=== Fuzzing $t (60s) ==="
+            ./build/ed25519-$t \
+              -max_total_time=60 \
+              -timeout=10 \
+              -print_final_stats=1 \
+              "tests/fuzz/corpora/$t" \
+              || exit 1
+          done

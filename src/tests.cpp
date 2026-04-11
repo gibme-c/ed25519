@@ -3,14 +3,18 @@ This is free and unencumbered software released into the public domain.
 */
 
 #include "ed25519.h"
+#include "ed25519_secure_erase.h"
 #include "ed25519_test_vectors.h"
 
+#include <array>
+#include <atomic>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <random>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 // ==============================================
@@ -809,34 +813,79 @@ static void test_ge_frombytes_reject_offcurve()
 
 static void test_ge_subgroup_order8_points()
 {
-    std::cout << std::endl << "=== ge_check_subgroup rejects order-8 points ===" << std::endl;
+    std::cout << std::endl << "=== ge_check_subgroup rejects full 8-torsion set ===" << std::endl;
 
-    // Two known order-8 points on the Ed25519 curve.
-    // These are on the curve but NOT in the prime-order subgroup.
+    // The complete set of small-order (8-torsion) points on Ed25519:
+    //   - (0,  1)        order 1 (identity)
+    //   - (0, -1)        order 2
+    //   - (±sqrt(-1), 0) order 4  (two points)
+    //   - four order-8 representatives
+    //
+    // All are on the curve; only the identity is in the prime-order subgroup.
+
+    const unsigned char identity_point[] = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    const unsigned char order2_point[] = {0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f};
+
+    const unsigned char order4_point_a[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80};
+
+    const unsigned char order4_point_b[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
     const unsigned char order8_point1[] = {0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f, 0xba, 0x3c, 0x0b,
                                            0x76, 0x0d, 0x10, 0x67, 0x0f, 0x2a, 0x20, 0x53, 0xfa, 0x2c, 0x39,
                                            0xcc, 0xc6, 0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0xfa};
     const unsigned char order8_point2[] = {0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0, 0x45, 0xc3, 0xf4,
                                            0x89, 0xf2, 0xef, 0x98, 0xf0, 0xd5, 0xdf, 0xac, 0x05, 0xd3, 0xc6,
                                            0x33, 0x39, 0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x85};
+    // Negatives (same y, flipped sign bit) — also order 8, distinct from points 1 and 2.
+    const unsigned char order8_point3[] = {0xc7, 0x17, 0x6a, 0x70, 0x3d, 0x4d, 0xd8, 0x4f, 0xba, 0x3c, 0x0b,
+                                           0x76, 0x0d, 0x10, 0x67, 0x0f, 0x2a, 0x20, 0x53, 0xfa, 0x2c, 0x39,
+                                           0xcc, 0xc6, 0x4e, 0xc7, 0xfd, 0x77, 0x92, 0xac, 0x03, 0x7a};
+    const unsigned char order8_point4[] = {0x26, 0xe8, 0x95, 0x8f, 0xc2, 0xb2, 0x27, 0xb0, 0x45, 0xc3, 0xf4,
+                                           0x89, 0xf2, 0xef, 0x98, 0xf0, 0xd5, 0xdf, 0xac, 0x05, 0xd3, 0xc6,
+                                           0x33, 0x39, 0xb1, 0x38, 0x02, 0x88, 0x6d, 0x53, 0xfc, 0x05};
 
-    auto check_order8 = [](const char *name, const unsigned char *point_bytes)
+    auto check_on_curve_not_in_subgroup = [](const char *name, const unsigned char *point_bytes)
     {
         ge_p3 p3;
         ge_dsmp table;
 
-        // Order-8 points are on the curve — decode should succeed
         int rc = ge_frombytes_vartime(&p3, point_bytes);
         check_int((std::string(name) + " decode succeeds").c_str(), 0, rc);
 
-        // But they are NOT in the prime-order subgroup
         ge_dsm_precomp(table, &p3);
         int result = ge_check_subgroup_precomp_vartime(table);
         check_nonzero((std::string(name) + " rejected by subgroup check").c_str(), result);
     };
 
-    check_order8("order-8 point 1", order8_point1);
-    check_order8("order-8 point 2", order8_point2);
+    // Identity is the one small-order point that DOES belong to the prime-order
+    // subgroup (trivially — it is the identity). ge_check_subgroup_precomp_vartime
+    // must accept it.
+    {
+        ge_p3 p3;
+        ge_dsmp table;
+        int rc = ge_frombytes_vartime(&p3, identity_point);
+        check_int("identity decode succeeds", 0, rc);
+        ge_dsm_precomp(table, &p3);
+        int result = ge_check_subgroup_precomp_vartime(table);
+        check_int("identity accepted by subgroup check", 0, result);
+    }
+
+    check_on_curve_not_in_subgroup("order-2 point", order2_point);
+    check_on_curve_not_in_subgroup("order-4 point a", order4_point_a);
+    check_on_curve_not_in_subgroup("order-4 point b", order4_point_b);
+    check_on_curve_not_in_subgroup("order-8 point 1", order8_point1);
+    check_on_curve_not_in_subgroup("order-8 point 2", order8_point2);
+    check_on_curve_not_in_subgroup("order-8 point 3", order8_point3);
+    check_on_curve_not_in_subgroup("order-8 point 4", order8_point4);
 }
 
 static void test_ristretto255_encode_decode()
@@ -4074,6 +4123,77 @@ static void test_x25519()
         x25519(alice_pub2, alice_scalar, basepoint);
         check_bytes("x25519_base == x25519(s, 9)", alice_pub, alice_pub2, 32);
     }
+
+    // RFC 7748 §5 regression: the u-coordinate's high bit MUST be masked.
+    // x25519(k, u) must equal x25519(k, u | 0x80).
+    {
+        const unsigned char scalar[32] = {0xa5, 0x46, 0xe3, 0x6b, 0xf0, 0x52, 0x7c, 0x9d, 0x3b, 0x16, 0x15,
+                                          0x4b, 0x82, 0x46, 0x5e, 0xdd, 0x62, 0x14, 0x4c, 0x0a, 0xc1, 0xfc,
+                                          0x5a, 0x18, 0x50, 0x6a, 0x22, 0x44, 0xba, 0x44, 0x9a, 0xc4};
+        const unsigned char u[32] = {0xe6, 0xdb, 0x68, 0x67, 0x58, 0x30, 0x30, 0xdb, 0x35, 0x94, 0xc1,
+                                     0xa4, 0x24, 0xb1, 0x5f, 0x7c, 0x72, 0x66, 0x24, 0xec, 0x26, 0xb3,
+                                     0x35, 0x3b, 0x10, 0xa9, 0x03, 0xa6, 0xd0, 0xab, 0x1c, 0x4c};
+        unsigned char u_with_msb[32];
+        std::memcpy(u_with_msb, u, 32);
+        u_with_msb[31] |= 0x80;
+
+        unsigned char out_clean[32], out_msb[32];
+        x25519(out_clean, scalar, u);
+        x25519(out_msb, scalar, u_with_msb);
+        check_bytes("x25519 MSB mask (fixed vector)", out_clean, out_msb, 32);
+
+        // Second iteration with randomized scalar and u — broader regression
+        // surface for the mask removal.
+        unsigned char rand_scalar[32], rand_u[32], rand_u_msb[32];
+        unsigned char out_a[32], out_b[32];
+        random_bytes(rand_scalar, 32);
+        random_bytes(rand_u, 32);
+        std::memcpy(rand_u_msb, rand_u, 32);
+        rand_u_msb[31] |= 0x80;
+        x25519(out_a, rand_scalar, rand_u);
+        x25519(out_b, rand_scalar, rand_u_msb);
+        check_bytes("x25519 MSB mask (random)", out_a, out_b, 32);
+    }
+}
+
+static void test_secure_erase()
+{
+    std::cout << std::endl << "=== ed25519_secure_erase ===" << std::endl;
+
+    // Fill a buffer with a non-zero pattern, erase it, then observe through
+    // a volatile pointer to defeat dead-store elimination detection.
+    {
+        unsigned char buf[64];
+        for (int i = 0; i < 64; i++)
+            buf[i] = 0xA5;
+        ed25519_secure_erase(buf, sizeof(buf));
+        volatile const unsigned char *vp = buf;
+        unsigned char accum = 0;
+        for (int i = 0; i < 64; i++)
+            accum |= vp[i];
+        check_int("secure_erase zeroes 64-byte buffer", 0, accum);
+    }
+
+    // Partial erase: only the first 8 bytes are erased; the remainder must
+    // retain its original pattern.
+    {
+        unsigned char buf[32];
+        for (int i = 0; i < 32; i++)
+            buf[i] = 0xC3;
+        ed25519_secure_erase(buf, 8);
+        volatile const unsigned char *vp = buf;
+        unsigned char erased_accum = 0;
+        for (int i = 0; i < 8; i++)
+            erased_accum |= vp[i];
+        unsigned char tail_accum_xor = 0;
+        for (int i = 8; i < 32; i++)
+            tail_accum_xor |= vp[i] ^ 0xC3;
+        check_int("secure_erase partial erased region zeroed", 0, erased_accum);
+        check_int("secure_erase partial tail untouched", 0, tail_accum_xor);
+    }
+
+    // Zero-length smoke test: must not crash on (nullptr, 0).
+    ed25519_secure_erase(nullptr, 0);
 }
 
 static void fuzz_fe_mul121666()
@@ -4207,6 +4327,91 @@ static void fuzz_cross_backend(const BackendFingerprint &baseline)
 }
 
 // ==============================================
+// Concurrent init stress (TSan pair)
+// ==============================================
+//
+// Spawns N threads that race ed25519_init() then perform dispatched operations.
+// The atomic countdown barrier forces every thread to hit the first-init CAS at
+// src/dispatch.cpp simultaneously. Outputs are compared against single-threaded
+// references so any dispatch-table publication / read ordering bug fails loudly.
+// Runs standalone in --concurrency-only mode for ThreadSanitizer CI jobs.
+
+static void test_ed25519_init_concurrent_stress()
+{
+    std::cout << std::endl << "=== ed25519_init concurrent stress ===" << std::endl;
+
+    const unsigned int hw = std::thread::hardware_concurrency();
+    // Parenthesized to defeat MSVC's <windows.h> min/max macros.
+    const unsigned int N_THREADS = (hw == 0) ? 4u : (std::min)(16u, (std::max)(2u, hw));
+    const int N_ITERS = 50;
+
+    int failures = 0;
+
+    for (int iter = 0; iter < N_ITERS; iter++)
+    {
+        std::atomic<int> ready {0};
+        std::vector<std::array<unsigned char, 32>> outputs(N_THREADS);
+        std::vector<std::thread> threads;
+        threads.reserve(N_THREADS);
+
+        for (unsigned int t = 0; t < N_THREADS; t++)
+        {
+            threads.emplace_back(
+                [&, t]()
+                {
+                    // Barrier: every thread waits until all are ready before racing init.
+                    ready.fetch_add(1, std::memory_order_acq_rel);
+                    while (ready.load(std::memory_order_acquire) < static_cast<int>(N_THREADS))
+                    {
+                        // Busy wait — deliberately not std::this_thread::yield() so the
+                        // CAS at ed25519_init() is hit as tightly as possible.
+                    }
+
+                    ed25519_init();
+
+                    unsigned char scalar[32] = {0};
+                    scalar[0] = static_cast<unsigned char>((t + 1) & 0xff);
+                    scalar[1] = static_cast<unsigned char>(iter & 0xff);
+
+                    ge_p1p1 r;
+                    ge_p3 p3;
+                    ge_scalarmult_base_ct(&r, scalar);
+                    ge_p1p1_to_p3(&p3, &r);
+                    ge_p3_tobytes(outputs[t].data(), &p3);
+                });
+        }
+
+        for (auto &th : threads)
+        {
+            th.join();
+        }
+
+        // Verify each thread's output against a single-threaded recomputation.
+        // Any data race on the dispatch table shows up as a mismatch here.
+        for (unsigned int t = 0; t < N_THREADS; t++)
+        {
+            unsigned char scalar[32] = {0};
+            scalar[0] = static_cast<unsigned char>((t + 1) & 0xff);
+            scalar[1] = static_cast<unsigned char>(iter & 0xff);
+
+            ge_p1p1 r;
+            ge_p3 p3;
+            unsigned char expected[32];
+            ge_scalarmult_base_ct(&r, scalar);
+            ge_p1p1_to_p3(&p3, &r);
+            ge_p3_tobytes(expected, &p3);
+
+            if (std::memcmp(expected, outputs[t].data(), 32) != 0)
+            {
+                failures++;
+            }
+        }
+    }
+
+    check_int("concurrent ed25519_init + dispatch produces consistent outputs", 0, failures);
+}
+
+// ==============================================
 // Main
 // ==============================================
 
@@ -4217,6 +4422,7 @@ int main(int argc, char *argv[])
 
     // Parse CLI arguments
     const char *dispatch_mode = "baseline";
+    bool concurrency_only = false;
     for (int i = 1; i < argc; i++)
     {
         if (std::strcmp(argv[i], "--autotune") == 0)
@@ -4229,11 +4435,27 @@ int main(int argc, char *argv[])
             ed25519_init();
             dispatch_mode = "init";
         }
+        else if (std::strcmp(argv[i], "--concurrency-only") == 0)
+        {
+            concurrency_only = true;
+        }
         else
         {
-            std::cerr << "Usage: " << argv[0] << " [--init | --autotune]" << std::endl;
+            std::cerr << "Usage: " << argv[0] << " [--init | --autotune] [--concurrency-only]" << std::endl;
             return 1;
         }
+    }
+
+    if (concurrency_only)
+    {
+        std::cout << "Ed25519 Unit Tests (concurrency-only mode)" << std::endl;
+        std::cout << "==================" << std::endl;
+        test_ed25519_init_concurrent_stress();
+        std::cout << std::endl << "==================" << std::endl;
+        std::cout << "Total:  " << tests_run << std::endl;
+        std::cout << "Passed: " << tests_passed << std::endl;
+        std::cout << "Failed: " << tests_failed << std::endl;
+        return tests_failed > 0 ? 1 : 0;
     }
 
     std::cout << "Ed25519 Unit Tests" << std::endl;
@@ -4294,6 +4516,9 @@ int main(int argc, char *argv[])
     // X25519
     test_x25519();
 
+    // Secure erase functional verification
+    test_secure_erase();
+
     // Edge-case tests
     test_scalarmult_zero_scalar();
     test_scalarmult_identity_point();
@@ -4339,6 +4564,10 @@ int main(int argc, char *argv[])
     fuzz_ristretto_from_uniform();
     fuzz_fe_mul121666();
     fuzz_x25519();
+
+    // Concurrent init / dispatch stress (also runnable standalone via
+    // --concurrency-only for TSan CI jobs).
+    test_ed25519_init_concurrent_stress();
 
     // Summary
     std::cout << std::endl << "==================" << std::endl;

@@ -50,7 +50,7 @@ Requires CMake 3.10+ and a C++17 compiler.
 
 ```bash
 # Configure and build
-cmake -S . -B build -DBUILD_TESTS=ON
+cmake -S . -B build -DED25519_BUILD_TESTS=ON
 cmake --build build --config Release -j
 
 # Run tests
@@ -62,17 +62,22 @@ cmake --build build --config Release -j
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `BUILD_TESTS` | `OFF` | Build the unit tests (`ed25519-tests`) |
-| `BUILD_BENCHMARKS` | `OFF` | Build the benchmark tool (`ed25519-benchmark`) |
-| `FORCE_PORTABLE` | `OFF` | Force the 32-bit portable implementation on 64-bit platforms (for testing/comparison) |
-| `ENABLE_LTO` | `OFF` | Enable link-time optimization |
-| `ENABLE_AVX2` | `ON`* | Enable AVX2 SIMD backend with runtime dispatch |
-| `ENABLE_AVX512` | `ON`* | Enable AVX-512 IFMA SIMD backend with runtime dispatch |
-| `ENABLE_SPECTRE_MITIGATIONS` | `OFF` | Enable MSVC `/Qspectre` Spectre mitigations (opt-in for hardened builds) |
-| `BUILD_TOOLS` | `OFF` | Build the test vector generator (`ed25519-gen-testvectors`) |
+| `ED25519_BUILD_TESTS` | `OFF` | Build the unit tests (`ed25519-tests`) |
+| `ED25519_BUILD_BENCHMARKS` | `OFF` | Build the benchmark tool (`ed25519-benchmark`) |
+| `ED25519_BUILD_TOOLS` | `OFF` | Build the test vector generator (`ed25519-gen-testvectors`) |
+| `ED25519_BUILD_CT_TESTS` | `OFF` | Build empirical constant-time (dudect) harnesses (POSIX only, local use) |
+| `ED25519_BUILD_FUZZERS` | `OFF` | Build libFuzzer harnesses (Clang only) |
+| `ED25519_FORCE_PORTABLE` | `OFF` | Force the 32-bit portable implementation on 64-bit platforms (for testing/comparison) |
+| `ED25519_ENABLE_LTO` | `OFF` | Enable link-time optimization |
+| `ED25519_ENABLE_AVX2` | `ON`* | Enable AVX2 SIMD backend with runtime dispatch |
+| `ED25519_ENABLE_AVX512` | `ON`* | Enable AVX-512 IFMA SIMD backend with runtime dispatch |
+| `ED25519_ENABLE_SPECTRE_MITIGATIONS` | `OFF` | Enable MSVC `/Qspectre` Spectre mitigations (opt-in for hardened builds) |
+| `ED25519_TEST_SANITIZERS` | *(empty)* | Comma-separated sanitizers applied to test binaries only (e.g. `address,undefined`, `thread`). Never applied to the `ed25519` library target. |
 | `CMAKE_BUILD_TYPE` | `Release` | `Debug`, `Release`, or `RelWithDebInfo` |
 
-\* On x86_64 only. Both default to `OFF` on other architectures or when `FORCE_PORTABLE` is set. Set either to `OFF` to benchmark individual code paths in isolation.
+\* On x86_64 only. Both default to `OFF` on other architectures or when `ED25519_FORCE_PORTABLE` is set. Set either to `OFF` to benchmark individual code paths in isolation.
+
+The `ED25519_BUILD_*` options only take effect when the repository is configured as the top-level CMake project. When consumed via `add_subdirectory()`, they are forced `OFF` — downstream consumers never compile tests, benchmarks, tools, or fuzzers into their own builds, regardless of parent-project variable names.
 
 ## Usage
 
@@ -184,7 +189,7 @@ The library uses two levels of dispatch to get the best performance on each plat
 - **64-bit** (x86_64, ARM64): Field elements are `uint64_t[5]` in radix-2⁵¹. Multiplication uses 128-bit products (`__int128` on GCC/Clang, `_umul128` on MSVC).
 - **Everything else**: Falls back to the portable implementation with `int32_t[10]` in alternating 26/25-bit limbs.
 
-Both representations are 40 bytes, so the `fe` type has the same layout regardless of backend. The `FORCE_PORTABLE` CMake option forces the 32-bit path on 64-bit platforms for testing.
+Both representations are 40 bytes, so the `fe` type has the same layout regardless of backend. The `ED25519_FORCE_PORTABLE` CMake option forces the 32-bit path on 64-bit platforms for testing.
 
 **Runtime dispatch** (x86_64 only) selects SIMD-accelerated implementations for ten hot-path functions:
 
@@ -309,13 +314,14 @@ On x86_64, SIMD-accelerated backends are selected at runtime based on detected C
 
 ## Testing
 
-Build with `-DBUILD_TESTS=ON` to get the `ed25519-tests` executable. CLI options:
+Build with `-DED25519_BUILD_TESTS=ON` to get the `ed25519-tests` executable. CLI options:
 
 | Flag | Effect |
 |------|--------|
 | *(none)* | Run with baseline dispatch (x64 or portable, no SIMD) |
 | `--init` | Use CPUID heuristic dispatch before running tests |
 | `--autotune` | Use benchmarked best-per-function dispatch before running tests |
+| `--concurrency-only` | Run only the `ed25519_init` concurrent stress test (intended for TSan runs) |
 
 The test suite has three layers:
 
@@ -327,7 +333,7 @@ Deterministic tests for operations not covered by the other layers: `sc_reduce` 
 
 Independently validated deterministic vectors covering scalar, field element, group element, and ristretto255 operations. The pipeline:
 
-1. **Generator** (`tools/gen_test_vectors.cpp`) — built with `-DFORCE_PORTABLE=ON` to use the trusted portable backend. Emits JSON to `test_vectors/ed25519_test_vectors.json`.
+1. **Generator** (`tools/gen_test_vectors.cpp`) — built with `-DED25519_FORCE_PORTABLE=ON` to use the trusted portable backend. Emits JSON to `test_vectors/ed25519_test_vectors.json`.
 2. **Validator** (`tools/validate_test_vectors.py`) — independently recomputes every result using PyNaCl (libsodium bindings). Validates all vectors before they're compiled into tests.
 3. **Converter** (`tools/json_to_header.py`) — converts JSON to `include/ed25519_test_vectors.h` with constexpr C++ structs.
 
@@ -349,7 +355,7 @@ Operations covered: `sc_add`, `sc_sub`, `sc_mul`, `sc_muladd`, `sc_mulsub`, `sc_
 
 ```bash
 # Build the generator with the portable backend
-cmake -S . -B build-portable -DFORCE_PORTABLE=ON -DBUILD_TOOLS=ON
+cmake -S . -B build-portable -DED25519_FORCE_PORTABLE=ON -DED25519_BUILD_TOOLS=ON
 cmake --build build-portable --config Release --target ed25519-gen-testvectors
 
 # Generate JSON
@@ -364,7 +370,7 @@ python tools/json_to_header.py test_vectors/ed25519_test_vectors.json include/ed
 
 ## Benchmarking
 
-Build with `-DBUILD_BENCHMARKS=ON` to get the `ed25519-benchmark` executable. CLI options:
+Build with `-DED25519_BUILD_BENCHMARKS=ON` to get the `ed25519-benchmark` executable. CLI options:
 
 | Flag | Effect |
 |------|--------|
@@ -382,9 +388,9 @@ GitHub Actions runs on every push, pull request, and on a weekly schedule. Every
 
 | Configuration | CMake flags | What it tests |
 |---------------|-------------|---------------|
-| **portable** | `-DFORCE_PORTABLE=ON` | 32-bit `int32_t[10]` field arithmetic on all platforms |
-| **x64-baseline** | `-DENABLE_AVX2=OFF -DENABLE_AVX512=OFF` | 64-bit radix-2⁵¹ backend with no SIMD dispatch |
-| **x64-avx2** | `-DENABLE_AVX512=OFF` | AVX2 SIMD backend (runtime-dispatched if CPU supports it) |
+| **portable** | `-DED25519_FORCE_PORTABLE=ON` | 32-bit `int32_t[10]` field arithmetic on all platforms |
+| **x64-baseline** | `-DED25519_ENABLE_AVX2=OFF -DED25519_ENABLE_AVX512=OFF` | 64-bit radix-2⁵¹ backend with no SIMD dispatch |
+| **x64-avx2** | `-DED25519_ENABLE_AVX512=OFF` | AVX2 SIMD backend (runtime-dispatched if CPU supports it) |
 | **x64-full** | *(defaults)* | Full build with AVX2 + AVX-512 IFMA backends |
 
 Compilers under test:
@@ -396,6 +402,29 @@ Compilers under test:
 | Windows (x86_64) | MSVC, MinGW-GCC | All four |
 
 Unit tests and benchmarks run for every combination.
+
+## Constant-time validation (optional)
+
+For local empirical validation of the constant-time scalar multiplication
+routines (`ge_scalarmult_ct`, `ge_scalarmult_base_ct`), the repo vendors
+the [dudect](https://github.com/oreparaz/dudect) Welch t-test harness
+under `tests/ct/`. It is disabled by default and only builds on POSIX
+(Linux/macOS).
+
+```bash
+cmake -S . -B build/ct -DED25519_BUILD_CT_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build/ct
+./build/ct/tests/ct/ed25519-ct-ge-scalarmult       # runs continuously, Ctrl-C to stop
+./build/ct/tests/ct/ed25519-ct-ge-scalarmult-base
+```
+
+The harnesses print running Welch t-statistics; values below ~10 over
+millions of measurements indicate "probably constant time". Dudect is
+statistical and extremely sensitive to environmental noise — disable
+Turbo Boost, pin the process to one isolated core, close other
+applications, and do **not** run this on shared / virtualized hardware
+(CI runners are too noisy; this is deliberately excluded from the
+GitHub Actions workflow).
 
 ## License
 

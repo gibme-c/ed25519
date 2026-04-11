@@ -57,6 +57,11 @@ For more information, please refer to <http://unlicense.org/>
  *    operations (constant-time), and _vartime functions only for
  *    verification on public data.
  * 7. Zero sensitive data after use via ed25519_secure_erase().
+ *
+ * @note **Cofactor clearing:** ge_mul8 is exposed in the public header surface
+ *       as a caller-facing primitive for callers who need to clear the
+ *       cofactor (multiply by 8). For the more common "is this point in the
+ *       prime-order subgroup?" check, use ge_check_subgroup_precomp_vartime.
  */
 
 #ifndef ED25519_H

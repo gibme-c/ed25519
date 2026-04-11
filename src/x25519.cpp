@@ -85,6 +85,8 @@ void x25519(unsigned char shared_secret[32], const unsigned char scalar[32], con
     fe_copy(x3, x1);
     fe_1(z3);
 
+    fe a, aa, bb, cb, da, t, b_val, e_val;
+
     unsigned int swap = 0;
 
     for (int pos = 254; pos >= 0; --pos)
@@ -95,14 +97,10 @@ void x25519(unsigned char shared_secret[32], const unsigned char scalar[32], con
         fe_cswap(z2, z3, swap);
         swap = b;
 
-        fe a, aa, bb, cb, da, t;
-
         fe_add(a, x2, z2); // A = x2 + z2
         fe_sq(aa, a); // AA = A^2
-        fe b_val;
         fe_sub(b_val, x2, z2); // B = x2 - z2
         fe_sq(bb, b_val); // BB = B^2
-        fe e_val;
         fe_sub(e_val, aa, bb); // E = AA - BB
         fe_add(cb, x3, z3); // C = x3 + z3
         fe_sub(da, x3, z3); // D = x3 - z3
@@ -129,11 +127,20 @@ void x25519(unsigned char shared_secret[32], const unsigned char scalar[32], con
     fe_tobytes(shared_secret, x2);
 
     ed25519_secure_erase(e, sizeof(e));
+    ed25519_secure_erase(x1, sizeof(fe));
     ed25519_secure_erase(x2, sizeof(fe));
     ed25519_secure_erase(z2, sizeof(fe));
     ed25519_secure_erase(x3, sizeof(fe));
     ed25519_secure_erase(z3, sizeof(fe));
     ed25519_secure_erase(z2_inv, sizeof(fe));
+    ed25519_secure_erase(a, sizeof(fe));
+    ed25519_secure_erase(aa, sizeof(fe));
+    ed25519_secure_erase(bb, sizeof(fe));
+    ed25519_secure_erase(cb, sizeof(fe));
+    ed25519_secure_erase(da, sizeof(fe));
+    ed25519_secure_erase(t, sizeof(fe));
+    ed25519_secure_erase(b_val, sizeof(fe));
+    ed25519_secure_erase(e_val, sizeof(fe));
 }
 
 void x25519_base(unsigned char public_key[32], const unsigned char scalar[32])

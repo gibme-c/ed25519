@@ -94,7 +94,9 @@ void ge_scalarmult_portable_ct(ge_p1p1 *t, const unsigned char *a, const ge_p3 *
     {
         signed char b = e[i];
         unsigned char bnegative = negative(b);
-        unsigned char babs = b - (((-bnegative) & b) << 1);
+        // Branchless |b| via XOR-subtract trick, computed in unsigned to avoid
+        // UB from left-shifting a negative int.
+        unsigned char babs = (unsigned char)(((unsigned int)(int)b ^ (0u - (unsigned int)bnegative)) + bnegative);
         ge_p2_dbl(t, &r);
         ge_p1p1_to_p2(&r, t);
         ge_p2_dbl(t, &r);

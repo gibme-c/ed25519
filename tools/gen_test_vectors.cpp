@@ -2,7 +2,7 @@
 This is free and unencumbered software released into the public domain.
 
 Deterministic test vector generator for the Ed25519 library.
-Emits JSON to stdout. Must be built with -DFORCE_PORTABLE=ON
+Emits JSON to stdout. Must be built with -DED25519_FORCE_PORTABLE=ON
 to use the trusted portable backend as reference.
 
 Usage: ed25519-gen-testvectors > test_vectors/ed25519_test_vectors.json
@@ -18,7 +18,7 @@ Usage: ed25519-gen-testvectors > test_vectors/ed25519_test_vectors.json
 // ============================================================
 // Portable backend enforcement (runtime)
 // ============================================================
-// This generator MUST be built with -DFORCE_PORTABLE=ON so that it uses
+// This generator MUST be built with -DED25519_FORCE_PORTABLE=ON so that it uses
 // the original trusted portable backend. The SageMath validator independently
 // confirms these results, and then all other backends must match them.
 //
@@ -28,15 +28,15 @@ Usage: ed25519-gen-testvectors > test_vectors/ed25519_test_vectors.json
 static void enforce_portable_backend()
 {
 #if !ED25519_FORCE_PORTABLE
-    fprintf(stderr, "ERROR: gen_test_vectors MUST be built with -DFORCE_PORTABLE=ON\n");
+    fprintf(stderr, "ERROR: gen_test_vectors MUST be built with -DED25519_FORCE_PORTABLE=ON\n");
     fprintf(stderr, "       to use the trusted portable backend for reference vectors.\n");
-    fprintf(stderr, "       Rebuild with: cmake -DFORCE_PORTABLE=ON -DBUILD_TOOLS=ON\n");
+    fprintf(stderr, "       Rebuild with: cmake -DED25519_FORCE_PORTABLE=ON -DED25519_BUILD_TOOLS=ON\n");
     exit(1);
 #endif
 
 #if defined(ED25519_PLATFORM_64BIT) && ED25519_PLATFORM_64BIT
     fprintf(stderr, "ERROR: gen_test_vectors is using the 64-bit backend.\n");
-    fprintf(stderr, "       FORCE_PORTABLE is not active. Refusing to generate vectors.\n");
+    fprintf(stderr, "       ED25519_FORCE_PORTABLE is not active. Refusing to generate vectors.\n");
     exit(1);
 #endif
 

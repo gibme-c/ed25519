@@ -30,6 +30,9 @@ For more information, please refer to <http://unlicense.org/>
  * @brief portable implementation of scalar reduction modulo l (32-byte and 64-byte).
  */
 
+#include "ed25519_platform.h"
+#if !ED25519_PLATFORM_64BIT
+
 #include "ed25519_secure_erase.h"
 #include "sc.h"
 
@@ -630,3 +633,5 @@ void sc_reduce_portable(unsigned char *s, size_t len)
     else
         sc_reduce_32(s);
 }
+
+#endif // !ED25519_PLATFORM_64BIT

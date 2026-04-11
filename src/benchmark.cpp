@@ -32,6 +32,8 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "ed25519.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -120,9 +122,17 @@ int main(int argc, char *argv[])
 
     ge_p1p1 G_p1p1, H_p1p1;
 
-    ge_frombytes_vartime(&G_point3, G);
+    if (ge_frombytes_vartime(&G_point3, G) != 0)
+    {
+        std::fprintf(stderr, "benchmark: ge_frombytes_vartime(G) failed\n");
+        std::abort();
+    }
 
-    ge_frombytes_vartime(&H_point3, H);
+    if (ge_frombytes_vartime(&H_point3, H) != 0)
+    {
+        std::fprintf(stderr, "benchmark: ge_frombytes_vartime(H) failed\n");
+        std::abort();
+    }
 
     ge_fromfe_frombytes_vartime(&G_point2, G);
 
@@ -304,7 +314,11 @@ int main(int argc, char *argv[])
         {
             ge_p3 point;
 
-            ge_frombytes_vartime(&point, G);
+            if (ge_frombytes_vartime(&point, G) != 0)
+            {
+                std::fprintf(stderr, "benchmark: ge_frombytes_vartime failed on G\n");
+                std::abort();
+            }
         },
         "ge_frombytes_vartime");
 

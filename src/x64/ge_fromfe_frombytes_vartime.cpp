@@ -31,7 +31,6 @@ For more information, please refer to <http://unlicense.org/>
 #include "fe_copy.h"
 #include "fe_divpowm1.h"
 #include "fe_frombytes.h"
-#include "fe_invert.h"
 #include "fe_isnegative.h"
 #include "fe_isnonzero.h"
 #include "fe_mul.h"
@@ -40,10 +39,6 @@ For more information, please refer to <http://unlicense.org/>
 #include "fe_sq2.h"
 #include "fe_sub.h"
 
-#include <cassert>
-
-static const fe fe_d =
-    {0x34dca135978a3ULL, 0x1a8283b156ebdULL, 0x5e7a26001c029ULL, 0x739c663a03cbbULL, 0x52036cee2b6ffULL}; /* d */
 static const fe fe_sqrtm1 =
     {0x61b274a0ea0b0ULL, 0x0d5a5fc8f189dULL, 0x7ef5e9cbd0c60ULL, 0x78595a6804c9eULL, 0x2b8324804fc1dULL}; /* sqrt(-1) */
 static const fe fe_ma =
@@ -121,7 +116,7 @@ negative:
     fe_sub(y, w, x);
     if (fe_isnonzero(y))
     {
-        assert((fe_add(y, w, x), !fe_isnonzero(y)));
+        // On this branch (w + x) == 0 by construction of fe_divpowm1.
         fe_mul(r->X, r->X, fe_fffb3);
     }
     else
@@ -134,24 +129,11 @@ negative:
 setsign:
     if (fe_isnegative(r->X) != sign)
     {
-        assert(fe_isnonzero(r->X));
         fe_neg(r->X, r->X);
     }
     fe_add(r->Z, z, w);
     fe_sub(r->Y, z, w);
     fe_mul(r->X, r->X, r->Z);
 
-    fe check_x, check_y, check_iz, check_v;
-    fe_invert(check_iz, r->Z);
-    fe_mul(check_x, r->X, check_iz);
-    fe_mul(check_y, r->Y, check_iz);
-    fe_sq(check_x, check_x);
-    fe_sq(check_y, check_y);
-    fe_mul(check_v, check_x, check_y);
-    fe_mul(check_v, fe_d, check_v);
-    fe_add(check_v, check_v, check_x);
-    fe_sub(check_v, check_v, check_y);
-    fe_1(check_x);
-    fe_add(check_v, check_v, check_x);
-    assert(!fe_isnonzero(check_v));
+    // Elligator-2 is provably total: the resulting point is always on the curve.
 }

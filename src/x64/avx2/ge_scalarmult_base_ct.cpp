@@ -182,7 +182,9 @@ static inline __attribute__((always_inline)) void ge_p1p1_to_p3_avx2(ge_p3 *r, c
 static void select_avx2(ge_precomp *t, int pos, signed char b)
 {
     unsigned char bnegative = negative(b);
-    unsigned char babs = b - (((-bnegative) & b) << 1);
+    // Branchless |b| via XOR-subtract trick, computed in unsigned to avoid
+    // UB from left-shifting a negative int.
+    unsigned char babs = (unsigned char)(((unsigned int)(int)b ^ (0u - (unsigned int)bnegative)) + bnegative);
 
     ge_precomp_0_avx2(t);
     ge_precomp_cmov_avx2(t, &ge_base[pos][0], equal(babs, 1));
